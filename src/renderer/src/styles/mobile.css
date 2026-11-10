@@ -1,0 +1,564 @@
+/* ===== Telefon va planshet uchun moslashuv (faqat veb/PWA; kompyuter ilovasi dizayniga tegmaydi) ===== */
+html.web-app,
+html.web-app body,
+html.web-app #root {
+  height: 100%;
+  min-width: 320px;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+html.web-app body {
+  overflow: hidden;
+  background-attachment: scroll;
+}
+html.web-app .win-controls {
+  display: none !important; /* brauzerda oyna tugmalari kerak emas */
+}
+html.web-app .app-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html.web-app .app-body,
+html.web-app .content {
+  min-height: 0;
+  min-width: 0;
+}
+html.web-app .content {
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+}
+html.web-app .titlebar {
+  height: 76px;
+  padding-right: 0;
+  -webkit-app-region: no-drag;
+}
+html.web-app .titlebar .brand {
+  gap: 18px;
+}
+html.web-app .titlebar .brand-mark,
+html.web-app .titlebar .brand img {
+  width: 86px;
+  height: 68px;
+}
+html.web-app .titlebar .brand-mark {
+  flex-basis: 86px;
+}
+html.web-app .titlebar .brand-copy strong {
+  font-size: 20px;
+}
+html.web-app .titlebar .brand-copy em {
+  font-size: 15px;
+}
+html.web-app .titlebar .titlebar-actions {
+  gap: 12px;
+  padding: 0 16px;
+}
+html.web-app .titlebar-back-btn,
+html.web-app .titlebar-home-btn {
+  color: #78869d;
+}
+html.web-app .titlebar-back-btn:hover:not(:disabled),
+html.web-app .titlebar-home-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+html.web-app .language-switch {
+  gap: 3px;
+  padding: 3px;
+  border-radius: 17px;
+}
+html.web-app .language-switch button {
+  min-width: 52px;
+  min-height: 42px;
+  padding: 7px 12px;
+  border-radius: 12px;
+}
+html.web-app .language-switch button.active {
+  background: transparent;
+  color: var(--accent);
+}
+html.web-app .titlebar-home-icon {
+  display: none;
+}
+html.web-app .content {
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+}
+html.web-app button,
+html.web-app a,
+html.web-app input {
+  touch-action: manipulation;
+}
+html.web-app input {
+  font-size: max(16px, 1em); /* iOS maydonga bosganda yaqinlashtirib yubormasligi uchun */
+}
+
+@media (max-width: 900px) {
+  html.web-app .titlebar {
+    height: 56px;
+    gap: 4px;
+    padding-left: 6px;
+  }
+  html.web-app .titlebar .brand-copy {
+    display: none;
+  }
+  html.web-app .titlebar .brand-mark {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+  html.web-app .titlebar .brand img {
+    width: 44px;
+    height: 44px;
+  }
+  html.web-app .titlebar-home-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 0;
+    height: 40px;
+    padding: 0 10px;
+    font-size: 14px;
+    white-space: nowrap;
+    z-index: 1;
+  }
+  html.web-app .titlebar-actions {
+    gap: 4px;
+    padding: 0 6px 0 0;
+    min-width: 0;
+  }
+  html.web-app .titlebar-back-btn,
+  html.web-app .titlebar-home-btn {
+    height: 40px;
+    padding: 0 8px;
+    font-size: 14px;
+  }
+  html.web-app .titlebar-back-btn svg {
+    width: 21px;
+    height: 21px;
+  }
+  html.web-app .titlebar-actions .language-switch {
+    gap: 1px;
+    padding: 2px;
+  }
+  html.web-app .language-switch button {
+    min-width: 38px;
+    min-height: 40px;
+    padding: 6px;
+    font-size: 13px;
+  }
+  html.web-app .theme-cycle-btn {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+  html.web-app .content {
+    padding: 14px 12px calc(32px + env(safe-area-inset-bottom, 0px));
+  }
+  html.web-app .content > *,
+  html.web-app .content > *:not(.home-page):not(.test-page) {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  html.web-app .overlay,
+  html.web-app .modal-overlay,
+  html.web-app .confirm-modal-overlay {
+    padding: max(10px, env(safe-area-inset-top, 0px))
+      max(10px, env(safe-area-inset-right, 0px))
+      max(10px, env(safe-area-inset-bottom, 0px))
+      max(10px, env(safe-area-inset-left, 0px));
+  }
+  html.web-app .drawer {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
+    height: auto;
+    min-height: 0;
+    padding: 16px;
+    overflow: auto;
+  }
+  html.web-app .drawer-image-mode {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  html.web-app .drawer .drawer-body-image img,
+  html.web-app .help-image-viewport {
+    max-height: calc(100dvh - 100px);
+  }
+  html.web-app .modal,
+  html.web-app .confirm-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+  }
+  html.web-app .test-page,
+  html.web-app .test-shell,
+  html.web-app .test-main {
+    min-height: 0;
+    min-width: 0;
+  }
+  html.web-app .test-topbar {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  html.web-app .test-topbar-heading {
+    width: 100%;
+    min-width: 0;
+  }
+  html.web-app .test-topbar.is-compact .test-topbar-heading,
+  html.web-app .test-topbar.is-compact .test-result-summary {
+    display: none;
+  }
+  html.web-app .test-topbar.is-compact .test-topbar-heading .q-chip {
+    display: none;
+  }
+  html.web-app .test-topbar-heading .title {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+  }
+  html.web-app .test-topbar-heading .q-chip {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  html.web-app .header-title-toggle {
+    display: grid;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    place-items: center;
+    padding: 0;
+    border-radius: 50%;
+  }
+  html.web-app .header-title-toggle svg,
+  html.web-app .question-grid-toggle svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  html.web-app .question-card {
+    min-height: 0;
+    padding: 12px;
+    overscroll-behavior: contain;
+  }
+  html.web-app .question-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  html.web-app .question-layout > .question-text {
+    flex: none;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  html.web-app .question-visual {
+    flex: none;
+    width: 100%;
+    height: clamp(150px, 28dvh, 230px);
+    min-height: 150px;
+  }
+  html.web-app .question-copy {
+    flex: none;
+    width: 100%;
+  }
+  html.web-app .option-btn {
+    min-height: 48px;
+    text-align: left;
+  }
+  html.web-app .test-navigation {
+    position: relative;
+    z-index: 3;
+    flex: none;
+    min-width: 0;
+    min-height: 64px;
+    gap: 6px;
+    justify-content: flex-start;
+    padding: 18px 6px 6px;
+    border-radius: 30px;
+  }
+  html.web-app .question-grid-panel {
+    display: contents;
+  }
+  html.web-app .question-grid-panel > .q-grid {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 40px !important;
+    max-height: 40px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+  }
+  html.web-app .question-grid-panel.is-open {
+    position: absolute;
+    z-index: 10;
+    right: 0;
+    bottom: -6px;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    max-height: min(45dvh, calc(100dvh - 180px));
+    padding: 8px 8px 72px;
+    overflow: hidden;
+    border: 1px solid var(--stroke);
+    border-radius: 24px;
+    background: rgb(var(--surface));
+    box-shadow: var(--shadow);
+  }
+  html.web-app .question-grid-panel.is-open > .q-grid {
+    width: 100%;
+    height: auto !important;
+    max-height: none;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  html.web-app .question-grid-panel.is-open .question-grid-toggle {
+    top: auto;
+    bottom: 52px;
+  }
+  html.web-app .question-grid-panel .q-grid-page {
+    display: flex;
+    width: max-content;
+    min-width: max-content;
+    gap: 4px;
+    padding: 2px;
+  }
+  html.web-app .question-grid-panel.is-open .q-grid-page {
+    display: grid;
+    width: 100%;
+    min-width: 100%;
+    grid-template-columns: repeat(auto-fill, minmax(25px, 1fr)) !important;
+    grid-auto-rows: 28px;
+  }
+  html.web-app .question-grid-panel .q-dot {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 28px;
+    min-height: 28px;
+    border-radius: 6px;
+    font-size: 11px;
+  }
+  html.web-app .question-grid-panel.is-open .q-dot {
+    width: 100%;
+    flex: initial;
+  }
+  html.web-app .question-grid-toggle {
+    display: grid;
+    position: absolute;
+    top: -38px;
+    left: 50%;
+    z-index: 1;
+    width: 72px;
+    min-width: 72px;
+    height: 44px;
+    flex: 0 0 72px;
+    place-items: center;
+    padding: 0 0 2px;
+    border: 1px solid var(--stroke);
+    border-bottom: 0;
+    border-radius: 50% 50% 0 0;
+    background: rgb(var(--surface));
+    box-shadow: none;
+    transform: translateX(-50%);
+  }
+  html.web-app .question-grid-toggle:hover {
+    background: rgb(var(--surface));
+    box-shadow: none;
+  }
+  html.web-app .question-grid-toggle:active {
+    transform: translateX(-50%) scale(0.98);
+  }
+  html.web-app .q-grid {
+    flex: 1;
+    min-width: 0;
+    height: 48px !important;
+    max-height: 48px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+  }
+  html.web-app .q-grid-page {
+    display: flex;
+    width: max-content;
+    min-width: max-content;
+    gap: 6px;
+    padding: 2px;
+  }
+  html.web-app .q-dot {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+    font-size: 14px;
+  }
+  html.web-app .test-nav-arrow {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 420px) {
+  html.web-app .titlebar .brand-mark {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+  html.web-app .titlebar .brand img {
+    width: 38px;
+    height: 38px;
+  }
+  html.web-app .titlebar-home-btn {
+    height: 40px;
+    padding: 0 7px;
+    font-size: 12px;
+  }
+  html.web-app .language-switch button {
+    min-width: 34px;
+    padding: 5px 4px;
+    font-size: 12px;
+  }
+  html.web-app .titlebar-actions {
+    gap: 3px;
+    padding-right: 4px;
+  }
+  html.web-app .home-page .menu-grid-list .menu-card {
+    flex-basis: calc((100% - 8px) / 2);
+    min-height: 164px;
+    padding: 12px 6px;
+    gap: 8px;
+  }
+  html.web-app .home-page .menu-grid-list .menu-card .icon {
+    width: 112px;
+    height: 112px;
+  }
+  html.web-app .home-page .menu-grid-list .menu-card .icon svg,
+  html.web-app .home-page .menu-grid-list .menu-card .icon img.home-icon-image {
+    width: 104px;
+    height: 104px;
+  }
+  html.web-app .home-page .menu-grid-list .menu-card h3 {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+}
+
+@media (max-width: 600px) {
+  html.web-app .titlebar-back-btn {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+  html.web-app .titlebar-back-btn span {
+    display: none;
+  }
+  html.web-app .titlebar-home-btn {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+  html.web-app .titlebar-home-btn span {
+    display: none;
+  }
+  html.web-app .titlebar-home-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+@media (max-width: 360px) {
+  html.web-app .titlebar-home-btn {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+  html.web-app .titlebar-home-btn span {
+    display: none;
+  }
+  html.web-app .titlebar-home-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+@media (max-height: 620px) and (max-width: 760px) {
+  html.web-app .content:has(.test-page) {
+    padding: 2px 6px 6px;
+  }
+  html.web-app .test-topbar {
+    gap: 5px;
+    padding: 5px 8px;
+  }
+  html.web-app .test-topbar-actions {
+    min-height: 34px;
+    gap: 6px;
+  }
+  html.web-app .q-chip {
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+  html.web-app .question-text {
+    font-size: 17px;
+    line-height: 1.4;
+  }
+  html.web-app .option-btn {
+    min-height: 42px;
+    padding: 7px 9px;
+    gap: 6px;
+    font-size: 15px;
+    line-height: 1.35;
+  }
+  html.web-app .option-label {
+    min-width: 36px;
+    margin: -7px 2px -7px -9px;
+    padding: 0 7px;
+  }
+  html.web-app .test-main {
+    gap: 4px;
+  }
+  html.web-app .question-visual {
+    height: 21dvh;
+    min-height: 100px;
+  }
+  html.web-app .test-topbar {
+    padding-block: 4px;
+  }
+}

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g stroke="#38bdf8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow-blue)">
+    <!-- Svetofor korpusi -->
+    <rect x="22" y="8" width="20" height="48" rx="4" />
+
+    <!-- Yon soyabonlar (visors) -->
+    <!-- Yuqori -->
+    <path d="M 22 14 L 16 12 M 42 14 L 48 12" />
+    <!-- O'rta -->
+    <path d="M 22 32 L 16 30 M 42 32 L 48 30" />
+    <!-- Pastki -->
+    <path d="M 22 50 L 16 48 M 42 50 L 48 48" />
+
+    <!-- Aylanalar -->
+    <circle cx="32" cy="18" r="5" stroke="#ff5555" /> <!-- Yuqori chiroq (qizg'ish neon) -->
+    <circle cx="32" cy="32" r="5" />
+    <circle cx="32" cy="46" r="5" />
+  </g>
+</svg>
