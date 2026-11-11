@@ -68,6 +68,20 @@ window.api = {
       emit('changed', result)
       return result
     },
+    requireReactivation: async () => {
+      await ready()
+      return activation.requireReactivation()
+    },
+    getSavedCode: async () => {
+      await ready()
+      return activation.getSavedActivationCode()
+    },
+    retryDeviceActivation: async (code) => {
+      await ready()
+      const result = await activation.retryDeviceActivation(code)
+      if (result.ok) emit('changed', activation.status())
+      return result
+    },
     onChanged: subscribe('changed'),
     onRequired: subscribe('required'),
   },
@@ -110,6 +124,12 @@ window.api = {
   },
 
   questions: { pick: guarded((payload) => engine.pickQuestions(payload)) },
+
+  saved: {
+    list: guarded(() => engine.listSavedQuestions()),
+    has: guarded((questionId) => engine.isQuestionSaved(questionId)),
+    toggle: guarded((questionId) => engine.toggleSavedQuestion(questionId)),
+  },
 
   tests: {
     start: guarded((payload) => engine.startAttempt(payload)),

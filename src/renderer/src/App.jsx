@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import TitleBar from './components/TitleBar'
+import BottomNav from './components/BottomNav'
 import Activation from './pages/Activation'
 import Home from './pages/Home'
 import Topics from './pages/Topics'
@@ -12,14 +13,56 @@ import NewQuestions from './pages/NewQuestions'
 import TestRunner from './pages/TestRunner'
 import Variants from './pages/Variants'
 import PracticeOptions from './pages/PracticeOptions'
+import Saved from './pages/Saved'
 import { LanguageContext } from './i18n'
 
 export default function App() {
+  const isWebApp = document.documentElement.classList.contains('web-app')
   const [activated, setActivated] = useState(null) // null = yuklanmoqda
+  const [activationNotice, setActivationNotice] = useState('')
+  const [syncError, setSyncError] = useState('')
+  const [syncing, setSyncing] = useState(false)
   const [language, setLanguage] = useState('uz-Latn')
   const location = useLocation()
   const navigate = useNavigate()
   const contentRef = useRef(null)
+
+  const refreshBase = useCallback(async () => {
+    setSyncError('')
+    setSyncing(true)
+    try {
+      const result = await window.api.sync.refreshBase()
+      if (result.ok && !result.skipped) {
+        window.dispatchEvent(new Event('pdd:database-updated'))
+      } else if (!result.ok && !result.cancelled && !result.skipped) {
+        console.error('[sync] Savollar bazasini yangilab bo‘lmadi:', result.message)
+        if (
+          isWebApp &&
+          String(result.message || '').includes('DEVICE_NOT_ACTIVATED')
+        ) {
+          await window.api.activation.requireReactivation()
+          setActivationNotice('syncActivationRequired')
+          setActivated(false)
+          return
+        }
+        setSyncError(result.message || 'Noma’lum sinxronlash xatosi.')
+      }
+    } catch (error) {
+      console.error('[sync] Savollar bazasini yangilab bo‘lmadi:', error)
+      if (
+        isWebApp &&
+        String(error?.message || '').includes('DEVICE_NOT_ACTIVATED')
+      ) {
+        await window.api.activation.requireReactivation()
+        setActivationNotice('syncActivationRequired')
+        setActivated(false)
+        return
+      }
+      setSyncError(error?.message || 'Noma’lum sinxronlash xatosi.')
+    } finally {
+      setSyncing(false)
+    }
+  }, [])
 
   useLayoutEffect(() => {
     if (contentRef.current) contentRef.current.scrollTop = 0
@@ -28,6 +71,9 @@ export default function App() {
   useEffect(() => {
     const applyStatus = (status) => {
       setActivated(status.activated)
+      if (isWebApp && !status.activated && status.reactivationPending) {
+        setActivationNotice('syncActivationRequired')
+      }
     }
     window.api.activation.status().then(applyStatus)
     const off = window.api.activation.onChanged(applyStatus)
@@ -40,8 +86,9 @@ export default function App() {
     const revalidate = async () => {
       if (checking) return
       checking = true
-      setActivated(false)
       try {
+        const status = await window.api.activation.status()
+        if (status.reactivationPending) return
         applyStatus(await window.api.activation.revalidate())
       } catch (error) {
         console.error('[activation] Online tekshiruvi bajarilmadi:', error)
@@ -50,20 +97,34 @@ export default function App() {
         checking = false
       }
     }
+    const initializeActivation = async () => {
+      try {
+        const status = await window.api.activation.status()
+        if (
+          navigator.onLine &&
+          (status.activated || status.leaseExpired)
+        ) {
+          await revalidate()
+        } else {
+          applyStatus(status)
+        }
+      } catch (error) {
+        console.error('[activation] Mahalliy aktivatsiya holati tekshirilmadi:', error)
+      }
+    }
     const onOnline = () => {
       void revalidate()
     }
     const dailyCheck = window.setInterval(async () => {
       try {
         const status = await window.api.activation.status()
-        applyStatus(status)
         if (
-          status.activated &&
           navigator.onLine &&
-          status.lastOnlineCheckAt &&
-          Date.now() - status.lastOnlineCheckAt >= 24 * 60 * 60 * 1000
+          (status.activated || status.leaseExpired)
         ) {
           await revalidate()
+        } else {
+          applyStatus(status)
         }
       } catch (error) {
         console.error(
@@ -72,6 +133,7 @@ export default function App() {
         )
       }
     }, 60_000)
+    void initializeActivation()
     window.addEventListener('online', onOnline)
     return () => {
       off()
@@ -84,21 +146,10 @@ export default function App() {
   useEffect(() => {
     if (!activated) return undefined
 
-    const refreshBase = async () => {
-      const result = await window.api.sync.refreshBase()
-      if (result.ok && !result.skipped) {
-        window.dispatchEvent(new Event('pdd:database-updated'))
-        return
-      }
-      if (!result.ok && !result.cancelled && !result.skipped) {
-        console.error('[sync] Savollar bazasini fonda yangilab bo‘lmadi:', result.message)
-      }
-    }
-
     void refreshBase()
     window.addEventListener('online', refreshBase)
     return () => window.removeEventListener('online', refreshBase)
-  }, [activated])
+  }, [activated, refreshBase])
 
   useEffect(() => {
     if (!activated) return undefined
@@ -148,13 +199,28 @@ export default function App() {
         <TitleBar />
         {activated === null ? null : !activated ? (
           <Activation
+            notice={activationNotice}
             onActivated={() => {
+              setActivationNotice('')
               setActivated(true)
             }}
           />
         ) : (
           <div className="app-body">
             <main className="content" ref={contentRef}>
+              {isWebApp && syncError && (
+                <div className="sync-error-banner" role="alert">
+                  <span>Savollar bazasi yuklanmadi: {syncError}</span>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => void refreshBase()}
+                    disabled={syncing}
+                  >
+                    {syncing ? 'Yuklanmoqda…' : 'Qayta urinish'}
+                  </button>
+                </div>
+              )}
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route
@@ -167,6 +233,7 @@ export default function App() {
                 <Route path="/exam" element={<Exam />} />
                 <Route path="/new-questions" element={<NewQuestions />} />
                 <Route path="/errors" element={<DirectStart mode="errors" />} />
+                {isWebApp && <Route path="/saved" element={<Saved />} />}
                 <Route
                   path="/exam-results"
                   element={<DirectStart mode="exam-results" />}
@@ -179,6 +246,7 @@ export default function App() {
             </main>
           </div>
         )}
+        {activated && location.pathname !== '/run' && <BottomNav />}
       </div>
     </LanguageContext.Provider>
   )

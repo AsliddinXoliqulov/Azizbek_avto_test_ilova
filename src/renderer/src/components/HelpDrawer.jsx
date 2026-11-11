@@ -80,14 +80,17 @@ export default function HelpDrawer({ question, onClose }) {
 
   return (
     <div
-      className={`overlay${showImage ? ' help-overlay-image' : ''}`}
+      className="image-viewer-overlay help-viewer-overlay"
       onClick={onClose}
     >
-      <div
-        className={`glass drawer${showImage ? ' drawer-image-mode' : ''}`}
+      <section
+        className={`help-viewer${showImage ? ' is-image-mode' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('help')}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className={showImage ? 'help-image-frame' : undefined}>
+        <div className={`glass help-modal-frame${showImage ? ' is-image-mode' : ''}`}>
           <div className="drawer-header">
             <div className="drawer-header-actions">
               {hasContent && (
@@ -105,42 +108,12 @@ export default function HelpDrawer({ question, onClose }) {
                   {activeContent === 'image' ? t('textMode') : t('imageMode')}
                 </button>
               )}
-              {showImage && (
-                <div className="help-image-toolbar">
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => zoomImage(1.25)}
-                    aria-label={t('zoomIn')}
-                    title={t('zoomIn')}
-                  >
-                    +
-                  </button>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => zoomImage(1 / 1.25)}
-                    aria-label={t('zoomOut')}
-                    title={t('zoomOut')}
-                  >
-                    −
-                  </button>
-                  <span>{Math.round(imageZoom * 100)}%</span>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={resetImageZoom}
-                  >
-                    {t('resetZoom')}
-                  </button>
-                </div>
-              )}
             </div>
             <button className="icon-btn" type="button" onClick={onClose} aria-label={t('close')}>
               ✕
             </button>
           </div>
-          <div className={`body drawer-body${showImage ? ' drawer-body-image' : ''}`}>
+          <div className={`help-modal-body${showImage ? ' drawer-body-image' : ''}`}>
             {hasContent ? (
               <>
                 {activeContent === 'text' && hasText && <p>{question.explanation}</p>}
@@ -179,7 +152,7 @@ export default function HelpDrawer({ question, onClose }) {
             )}
           </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }

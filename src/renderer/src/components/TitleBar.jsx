@@ -1,133 +1,168 @@
-import ThemeToggle from './ThemeToggle'
-import { useLanguage, useUi } from '../i18n'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useConfirm } from './ConfirmProvider'
-import darkBrand from '../../../logobg1.png'
-import lightBrand from '../../../logobg2.png'
+import ThemeToggle from './ThemeToggle'
+import {
+  IconBookmark,
+  IconChevronDown,
+  IconHome,
+  IconUser,
+  IconWarn,
+} from './Icons'
+import { useLanguage, useUi } from '../i18n'
+import darkBrand from '../../../logo-dark.png'
+import lightBrand from '../../../logo-light.png'
+
+// Menyu tashqarisiga bosilganda yoki Escape bosilganda yopiladi.
+function useDismiss(ref, open, close) {
+  useEffect(() => {
+    if (!open) return undefined
+    const onPointer = (event) => {
+      if (!ref.current?.contains(event.target)) close()
+    }
+    const onKey = (event) => {
+      if (event.key === 'Escape') close()
+    }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [ref, open, close])
+}
 
 export default function TitleBar() {
   const t = useUi()
   const { language, setLanguage } = useLanguage()
   const location = useLocation()
   const navigate = useNavigate()
-  const confirm = useConfirm()
+  const isHome = location.pathname === '/'
+
+  const [langOpen, setLangOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const langRef = useRef(null)
+  const profileRef = useRef(null)
+  useDismiss(langRef, langOpen, () => setLangOpen(false))
+  useDismiss(profileRef, profileOpen, () => setProfileOpen(false))
 
   const languages = [
     { code: 'uz-Latn', label: 'UZ', title: t('latin') },
     { code: 'uz-Cyrl', label: 'ЎЗ', title: t('cyrillic') },
     { code: 'ru', label: 'RU', title: t('russian') },
   ]
-  const currentLanguage =
-    languages.find((option) => option.code === language) || languages[0]
+  const current = languages.find((option) => option.code === language) || languages[0]
 
-  async function selectLanguage(nextLanguage) {
-    await window.api.settings.setLanguage(nextLanguage)
-    setLanguage(nextLanguage)
+  async function selectLanguage(code) {
+    setLangOpen(false)
+    await window.api.settings.setLanguage(code)
+    setLanguage(code)
   }
 
-  function handleBack() {
-    const historyIndex = window.history.state?.idx
-    if (typeof historyIndex === 'number' && historyIndex > 0) navigate(-1)
-    else navigate('/topics', { replace: true })
-  }
-
-  async function handleClose() {
-    const confirmed = await confirm({
-      title: t('exitApp'),
-      message: t('exitConfirm'),
-      confirmLabel: t('exitApp'),
-      cancelLabel: t('cancel'),
-      showClose: true,
-      closeLabel: t('close'),
-      danger: true,
-    })
-    if (confirmed) window.api.window.close()
+  function openSection(path) {
+    setProfileOpen(false)
+    navigate(path)
   }
 
   return (
-    <div className="titlebar">
-      <div className="brand">
-        <span className="brand-mark">
-          <img
-            className="brand-logo-dark"
-            src={darkBrand}
-            alt="AZIZBEK PRAVA AKADEMIYASI"
-          />
-          <img
-            className="brand-logo-light"
-            src={lightBrand}
-            alt="AZIZBEK PRAVA AKADEMIYASI"
-          />
-        </span>
-        <span className="brand-copy" aria-label="AZIZBEK PRAVA AKADEMIYASI">
-          <strong>AZIZBEK PRAVA</strong>
-          <em>AKADEMIYASI</em>
-        </span>
+    <header className={`titlebar${isHome ? ' is-home' : ''}`}>
+      <div className="titlebar-start">
+        <button
+          type="button"
+          className="brand"
+          onClick={() => navigate('/')}
+          aria-label={t('mainMenu')}
+        >
+          <span className="brand-mark">
+            <img className="brand-logo-dark" src={darkBrand} alt="" />
+            <img className="brand-logo-light" src={lightBrand} alt="" />
+          </span>
+          <span className="brand-copy">
+            <strong>AZIZBEK PRAVA</strong>
+            <em>AKADEMIYASI</em>
+          </span>
+        </button>
       </div>
+
       <button
         className="titlebar-home-btn"
         type="button"
         onClick={() => navigate('/')}
-        disabled={location.pathname === '/'}
+        disabled={isHome}
         aria-label={t('mainMenu')}
         title={t('mainMenu')}
       >
-        <svg className="titlebar-home-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
-        </svg>
+        <IconHome className="titlebar-home-icon" />
         <span>{t('mainMenu')}</span>
       </button>
+
       <div className="titlebar-actions">
-        <button
-          className="titlebar-back-btn"
-          type="button"
-          onClick={handleBack}
-          disabled={location.pathname === '/'}
-          aria-label={t('back')}
-          title={t('back')}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M19 12H5m7 7-7-7 7-7" />
-          </svg>
-          <span>{t('back')}</span>
-        </button>
-        <div className="language-switch">
-          {languages.map((option) => (
-            <button
-              key={option.code}
-              type="button"
-              className={option.code === currentLanguage.code ? 'active' : ''}
-              onClick={() => void selectLanguage(option.code)}
-              aria-label={option.title}
-              aria-pressed={option.code === currentLanguage.code}
-              title={option.title}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="titlebar-menu-wrap lang-wrap" ref={langRef}>
+          <button
+            type="button"
+            className={`titlebar-lang-btn${langOpen ? ' is-open' : ''}`}
+            onClick={() => {
+              setProfileOpen(false)
+              setLangOpen((open) => !open)
+            }}
+            aria-label={`${t('language')}: ${current.title}`}
+            aria-expanded={langOpen}
+            aria-haspopup="menu"
+          >
+            <span>{current.label}</span>
+            <IconChevronDown className="chev" />
+          </button>
+          {langOpen && (
+            <div className="titlebar-popover" role="menu">
+              {languages.map((option) => (
+                <button
+                  key={option.code}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={option.code === current.code}
+                  className={option.code === current.code ? 'active' : ''}
+                  onClick={() => void selectLanguage(option.code)}
+                >
+                  <b>{option.label}</b>
+                  <span>{option.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
         <ThemeToggle />
+
+        <div className="titlebar-menu-wrap profile-wrap" ref={profileRef}>
+          <button
+            type="button"
+            className={`titlebar-profile-btn${profileOpen ? ' is-open' : ''}`}
+            onClick={() => {
+              setLangOpen(false)
+              setProfileOpen((open) => !open)
+            }}
+            aria-label={t('profile')}
+            aria-expanded={profileOpen}
+            aria-haspopup="menu"
+            title={t('profile')}
+          >
+            <span className="titlebar-profile-avatar">
+              <IconUser />
+            </span>
+          </button>
+          {profileOpen && (
+            <div className="titlebar-popover profile-popover" role="menu">
+              <button type="button" role="menuitem" onClick={() => openSection('/errors')}>
+                <IconWarn />
+                <span>{t('profileErrors')}</span>
+              </button>
+              <button type="button" role="menuitem" onClick={() => openSection('/saved')}>
+                <IconBookmark />
+                <span>{t('savedQuestions')}</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="win-controls">
-        <button
-          className="win-btn maximize"
-          onClick={() => window.api.window.maximize()}
-          title={t('maximize')}
-          aria-label={t('maximize')}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="5" y="5" width="14" height="14" rx="1" />
-          </svg>
-        </button>
-        <button
-          className="win-btn close"
-          onClick={() => void handleClose()}
-          title={t('close')}
-          aria-label={t('close')}
-        >
-          &#x2715;
-        </button>
-      </div>
-    </div>
+    </header>
   )
 }

@@ -80,6 +80,22 @@ async function fetchChangedQuestions(since, onProgress, signal) {
   return { rows, fetched, newQuestions, estimatedBytes }
 }
 
+async function fetchLessonQuestionOrder(signal) {
+  const { data, error } = await supabase
+    .rpc('sync_lesson_question_order', { p_device_id: deviceId() })
+    .abortSignal(signal)
+  if (error) throw error
+  if (!Array.isArray(data)) {
+    throw new Error('Supabase savollar tartibi noto‘g‘ri formatda.')
+  }
+  return new Map(
+    data.map((row) => [
+      `${row.question_source}:${Math.abs(Number(row.question_id))}`,
+      Number(row.sort_order),
+    ])
+  )
+}
+
 function countChanged(rows) {
   return rows.reduce((count, row) => {
     const local = engine.state.questions.get(localQuestionId(row))?.updated_at
@@ -99,9 +115,18 @@ export async function refreshBase(onProgress = () => {}, signal) {
     if (row.updated_at && (!maxSeen || row.updated_at > maxSeen)) maxSeen = row.updated_at
   }
   const changed = await fetchChangedQuestions(since, onProgress, signal)
+  const lessonQuestionOrder = await fetchLessonQuestionOrder(signal)
+  const orderedRows = changed.rows.map((row) => {
+    if (row.lesson_id == null || row.lesson_id < 0) return row
+    const source = row.question_source === 'admin_new' ? 'admin_new' : 'base'
+    const order = lessonQuestionOrder.get(
+      `${source}:${Math.abs(Number(row.id))}`
+    )
+    return order === undefined ? row : { ...row, sort_order: order }
+  })
   const changedQuestions = countChanged(changed.rows)
   let newQuestions = 0
-  for (const row of changed.rows) {
+  for (const row of orderedRows) {
     if (!row.is_deleted && !engine.state.questions.has(localQuestionId(row))) newQuestions++
     if (!maxSeen || row.updated_at > maxSeen) maxSeen = row.updated_at
   }
@@ -109,7 +134,7 @@ export async function refreshBase(onProgress = () => {}, signal) {
   throwIfAborted(signal)
   const update = {
     catalog,
-    rows: changed.rows,
+    rows: orderedRows,
     maxSeen,
     fetched: changed.fetched,
     newQuestions,
@@ -201,6 +226,7 @@ async function installUpdate(update, onProgress = () => {}) {
   const toPut = []
   const toRemove = []
   const errorsToRemove = []
+  const savedToRemove = []
   for (const row of update.rows) {
     const id = localQuestionId(row)
     if (row.is_deleted) {
@@ -208,6 +234,10 @@ async function installUpdate(update, onProgress = () => {}) {
       state.errors.delete(String(id))
       toRemove.push(id)
       errorsToRemove.push(String(id))
+      if (state.savedQuestions.has(id)) {
+        state.savedQuestions.delete(id)
+        savedToRemove.push(id)
+      }
       continue
     }
     const question = buildQuestion(row, state.questions.get(id))
@@ -225,6 +255,7 @@ async function installUpdate(update, onProgress = () => {}) {
   await idb.putMany('questions', toPut)
   await idb.removeMany('questions', toRemove)
   await idb.removeMany('errors', errorsToRemove)
+  await idb.removeMany('saved', savedToRemove)
   await idb.removeMany('lessons', removedLessonIds)
 
   engine.invalidate()

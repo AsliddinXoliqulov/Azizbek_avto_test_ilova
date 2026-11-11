@@ -1,50 +1,46 @@
-import MenuCard from '../components/MenuCard'
+import { Link } from 'react-router-dom'
 import { useUi } from '../i18n'
-import lessonsIcon from '../../../dars.svg'
-import examIcon from '../../../imtihon-thin.svg'
+import { IconArrowRight, IconBook, IconExam, IconGrid, IconList } from '../components/Icons'
+import heroCar from '../../../hero-car.webp'
 
 export default function Home() {
   const t = useUi()
 
+  const tiles = [
+    { to: '/topics', tone: 'lessons', Icon: IconBook, title: t('lessons'), hint: t('tileLessonsHint') },
+    { to: '/exam', tone: 'exam', Icon: IconExam, title: t('realExam'), hint: t('tileExamHint') },
+    { to: '/question-practice', tone: 'practice', Icon: IconList, title: t('questions'), hint: t('tileQuestionsHint') },
+    { to: '/variants', tone: 'variants', Icon: IconGrid, title: t('variants'), hint: t('tileVariantsHint') },
+  ]
+
   return (
-    <div className="home-page">
-      <div className="menu-grid menu-grid-list">
-        <MenuCard
-          to="/topics"
-          title={t('lessons')}
-          icon={<img className="home-icon-image" src={lessonsIcon} alt="" />}
-        />
-        <MenuCard
-          to="/exam"
-          title={t('realExam')}
-          icon={<img className="home-icon-image" src={examIcon} alt="" />}
-        />
-        <MenuCard
-          to="/question-practice"
-          title={t('questions')}
-          className="home-practice-group"
-          icon={
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 5h12M9 12h12M9 19h12" />
-              <circle cx="4" cy="5" r="1" />
-              <circle cx="4" cy="12" r="1" />
-              <circle cx="4" cy="19" r="1" />
-            </svg>
-          }
-        />
-        <MenuCard
-          to="/variants"
-          title={t('variants')}
-          icon={
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3" y="4" width="8" height="7" rx="1.5" />
-              <rect x="13" y="4" width="8" height="7" rx="1.5" />
-              <rect x="3" y="13" width="8" height="7" rx="1.5" />
-              <rect x="13" y="13" width="8" height="7" rx="1.5" />
-            </svg>
-          }
-        />
-      </div>
+    <div className="home-page hm">
+      <section className="hm-hero" aria-labelledby="hm-title">
+        <div className="hm-hero-media">
+          <img src={heroCar} alt="" width="960" height="492" decoding="async" />
+          <span className="hm-beam hm-beam-l" aria-hidden="true" />
+          <span className="hm-beam hm-beam-r" aria-hidden="true" />
+        </div>
+        <div className="hm-hero-copy">
+          <h1 id="hm-title">{t('heroTitle')}</h1>
+          <p>{t('heroSub')}</p>
+        </div>
+      </section>
+
+      <nav className="hm-tiles" aria-label={t('mainMenu')}>
+        {tiles.map(({ to, tone, Icon, title, hint }) => (
+          <Link key={to} to={to} className={`hm-tile hm-tile-${tone}`}>
+            <span className="hm-tile-icon">
+              <Icon />
+            </span>
+            <span className="hm-tile-copy">
+              <strong>{title}</strong>
+              <small>{hint}</small>
+            </span>
+            <IconArrowRight className="hm-tile-go" />
+          </Link>
+        ))}
+      </nav>
     </div>
   )
 }

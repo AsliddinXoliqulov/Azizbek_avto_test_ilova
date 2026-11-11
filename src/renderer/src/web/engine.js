@@ -21,6 +21,7 @@ export const state = {
   variants: new Map(),
   attempts: new Map(),
   errors: new Map(),
+  savedQuestions: new Map(),
 }
 
 let cache = { usable: null, positions: null, categories: null }
@@ -37,8 +38,8 @@ const nowIso = () => new Date().toISOString()
 
 export async function init() {
   if (state.ready) return
-  const [kv, sections, lessons, questions, variants, attempts, errors] = await Promise.all(
-    ['kv', 'sections', 'lessons', 'questions', 'variants', 'attempts', 'errors'].map(idb.getAll)
+  const [kv, sections, lessons, questions, variants, attempts, errors, savedQuestions] = await Promise.all(
+    ['kv', 'sections', 'lessons', 'questions', 'variants', 'attempts', 'errors', 'saved'].map(idb.getAll)
   )
   state.kv = Object.fromEntries(kv.map((row) => [row.key, row.value]))
   state.sections = new Map(sections.map((row) => [row.id, row]))
@@ -47,6 +48,7 @@ export async function init() {
   state.variants = new Map(variants.map((row) => [row.id, row]))
   state.attempts = new Map(attempts.map((row) => [row.id, row]))
   state.errors = new Map(errors.map((row) => [row.qid, row]))
+  state.savedQuestions = new Map(savedQuestions.map((row) => [row.id, row]))
   if (!KEEP_EXAM_HISTORY) {
     const finished = [...state.attempts.values()].filter((a) => a.finished_at).map((a) => a.id)
     finished.forEach((id) => state.attempts.delete(id))
@@ -301,6 +303,34 @@ export function formatQuestions(list, includeAnswerKey = false) {
       isRoadSign: false,
     }
   })
+}
+
+export function listSavedQuestions() {
+  const saved = [...state.savedQuestions.values()]
+    .sort((a, b) => cmp(b.added_at || '', a.added_at || ''))
+    .map((row) => state.questions.get(Number(row.id)))
+    .filter((question) => question && isUsable(question))
+  return formatQuestions(saved)
+}
+
+export function isQuestionSaved(questionId) {
+  return state.savedQuestions.has(Number(questionId))
+}
+
+export async function toggleSavedQuestion(questionId) {
+  const id = Number(questionId)
+  if (!Number.isSafeInteger(id) || !state.questions.has(id)) {
+    throw new Error('SAVOL_TOPILMADI')
+  }
+  if (state.savedQuestions.has(id)) {
+    await idb.remove('saved', id)
+    state.savedQuestions.delete(id)
+    return false
+  }
+  const row = { id, added_at: nowIso() }
+  await idb.put('saved', row)
+  state.savedQuestions.set(id, row)
+  return true
 }
 
 const NUMERIC_RE =
@@ -622,15 +652,15 @@ export async function answerQuestion({ attemptId, questionId, chosenIndex, mode 
     await saveAttempt(attempt)
   }
   const key = String(questionId)
-  if (!feedback.isCorrect && mode === 'exam') {
+  if (mode === 'errors' && feedback.isCorrect) {
+    state.errors.delete(key)
+    await idb.remove('errors', key)
+  } else if (!feedback.isCorrect) {
     if (!state.errors.has(key)) {
       const row = { qid: key, added_at: nowIso() }
       state.errors.set(key, row)
       await idb.put('errors', row)
     }
-  } else if (mode === 'errors') {
-    state.errors.delete(key)
-    await idb.remove('errors', key)
   }
   return feedback
 }

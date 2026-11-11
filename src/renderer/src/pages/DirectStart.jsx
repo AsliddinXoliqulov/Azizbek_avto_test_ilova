@@ -36,7 +36,12 @@ export default function DirectStart({ mode }) {
                   <h2>{result.mode === 'section-exam' ? t('intermediateResult') : t('result', { count: result.resultNumber })}</h2>
                   <p>{result.mode === 'section-exam' ? result.title || t('intermediate') : t('realExam')}</p>
                 </div>
-                <strong className={result.percent >= 90 ? 'result-passed' : 'result-failed'}>
+                <strong className={`exam-result-outcome ${result.percent >= 90 ? 'result-passed' : 'result-failed'}`}>
+                  <span>
+                    {result.percent >= 90
+                      ? t('examPassedShort')
+                      : t('examNotPassedShort')}
+                  </span>
                   {result.percent}%
                 </strong>
               </header>

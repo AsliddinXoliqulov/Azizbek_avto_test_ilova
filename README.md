@@ -1,6 +1,6 @@
-# ilova_sayt — telefon va brauzer uchun PWA
+# ilova_sayt — telefon va brauzer uchun sayt
 
-Kompyuter ilovasi (`pdd-desktop-app`) bilan **bir xil interfeys**, lekin brauzerda ishlaydi va telefonga ilova kabi o'rnatiladi.
+Kompyuter ilovasi (`pdd-desktop-app`) bilan **bir xil interfeys**, lekin brauzerda ishlaydi.
 Ma'lumotlar Supabase'dan yuklanadi va qurilmaning o'zida (IndexedDB) saqlanadi, shuning uchun internetsiz ham ishlaydi.
 
 ## Ishga tushirish
@@ -14,24 +14,26 @@ npm start            # http://localhost:4173 da tekshirish
 `.env` (namuna: `.env.example`) faqat **publishable/anon** kalitni oladi. `service_role` kalitni bu yerga qo'ymang —
 `build.mjs` bunday kalitni ko'rsa, yig'ishni to'xtatadi.
 
-## Internetga joylash (telefonda o'rnatish uchun HTTPS shart)
+Sayt aktivatsiyasi uchun Supabase'da
+[`Frontend/supabase_web_activation_migration.sql`](../Frontend/supabase_web_activation_migration.sql)
+migratsiyasini bir marta ishga tushiring.
+
+## Internetga joylash
 
 `dist/` — oddiy statik sayt. Vercel / Netlify / Cloudflare Pages / GitHub Pages — istalganiga bo'ladi.
 Vercel: loyihani ulang, Environment Variables'ga `VITE_SUPABASE_URL` va `VITE_SUPABASE_ANON_KEY` ni kiriting
 (`vercel.json` tayyor: build `npm run build`, chiqish `dist`).
 
-## Telefonga o'rnatish
-
-- **Android (Chrome):** saytni oching → ⋮ menyu → «Ilovani o'rnatish» / «Bosh ekranga qo'shish».
-- **iPhone (Safari):** saytni oching → «Ulashish» → «Bosh ekranga qo'shish».
-
 ## Qanday ishlaydi
 
-1. **Faollashtirish.** Har bir telefon uchun admin paneldan **alohida kod** beriladi (kod bitta qurilmaga bog'lanadi).
+1. **Faollashtirish.** Har bir telefon uchun admin paneldagi **Sayt** bo'limidan alohida kod beriladi
+   (kod `WEB` bilan boshlanadi, desktop kodlaridan alohida saqlanadi va bitta qurilmaga bog'lanadi).
+   Kod yaratilganidan 15 kun o'tgach muddati tugaydi; shu vaqtdan keyin saytga kirish ham bloklanadi.
    Qurilma identifikatori brauzerda yaratiladi (`web-…`). Brauzer ma'lumotlari tozalansa, yangi kod kerak bo'ladi.
 2. **Avtomatik sinxronlash.** Faollashtirilgan ilova ochilganda katalog va savol matnlari fonda Supabase RPC
-   (`sync_base_catalog`, `sync_base_questions`) orqali tekshiriladi. Faqat yangi yoki o'zgargan ma'lumotlar olinib,
-   IndexedDB'da saqlanadi; foydalanuvchiga alohida yangilash bo'limi ko'rsatilmaydi.
+   (`sync_base_catalog`, `sync_base_questions`, `sync_lesson_question_order`) orqali tekshiriladi. Faqat yangi yoki
+   o'zgargan ma'lumotlar olinib, IndexedDB'da saqlanadi; foydalanuvchiga alohida yangilash bo'limi ko'rsatilmaydi.
+   Mavzu ichidagi savollar admin panelda o'zgartirilgan tartibda ko'rsatiladi.
 3. **Rasmlar.** Savol yoki izoh rasmi kerak bo'lgandagina yuklanadi va Cache Storage'da saqlanadi. Savol rasmi
    bo'lmagan savollarda admin paneldagi umumiy rasm ishlatiladi; u belgilanmagan bo'lsa, `namuna.png` ko'rsatiladi.
    Keyingi safar rasm keshdan ochiladi, shu sababli qayta trafik sarflanmaydi.

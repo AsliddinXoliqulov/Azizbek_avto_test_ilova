@@ -228,7 +228,12 @@ export default function PracticeOptions({ teacher = false, unified = false }) {
                   disabled={countPrompt.count < 20}
                   onClick={() => void chooseCount(20)}
                 >
-                  <strong>{t('practiceTimed20')}</strong>
+                  <strong>
+                    <span>{t('practiceTimed20Count')}</span>
+                    <span className="practice-timed-extra">
+                      {t('practiceTimed20Suffix')}
+                    </span>
+                  </strong>
                 </button>
                 <button
                   type="button"

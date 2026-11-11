@@ -4,8 +4,9 @@ import { useConfirm } from '../components/ConfirmProvider'
 import useTimer from '../hooks/useTimer'
 import HelpDrawer, { toFileUrl } from '../components/HelpDrawer'
 import EmptyState from '../components/EmptyState'
+import { IconBookmark } from '../components/Icons'
 import { useUi } from '../i18n'
-import noQuestionImage from '../../../namuna.png'
+import noQuestionImage from '../../../namuna.webp'
 import { useCachedImageUrl } from '../web/images'
 
 export default function TestRunner() {
@@ -22,13 +23,14 @@ export default function TestRunner() {
   const [attemptId, setAttemptId] = useState(null)
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState({})
+  const [savedQuestionState, setSavedQuestionState] = useState({ id: null, saved: false })
+  const [savingQuestion, setSavingQuestion] = useState(false)
   const [pendingIndex, setPendingIndex] = useState(null)
   const [topicTestStarted, setTopicTestStarted] = useState(false)
   const [earlyExamFailure, setEarlyExamFailure] = useState(false)
   const [questionGridOpen, setQuestionGridOpen] = useState(false)
   const [headerTitleOpen, setHeaderTitleOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const [infoOpen, setInfoOpen] = useState(false)
   const [result, setResult] = useState(null)
   const [finishing, setFinishing] = useState(false)
   const [answering, setAnswering] = useState(false)
@@ -44,6 +46,8 @@ export default function TestRunner() {
   const loadTokenRef = useRef(0)
   const imageDragRef = useRef(null)
   const questionGridRef = useRef(null)
+  const questionGridTouchRef = useRef(null)
+  const ignoreQuestionGridClickUntilRef = useRef(0)
 
   useEffect(() => () => window.clearTimeout(advanceTimerRef.current), [])
   useEffect(() => {
@@ -104,9 +108,6 @@ export default function TestRunner() {
         } else if (helpOpen) {
           event.preventDefault()
           setHelpOpen(false)
-        } else if (infoOpen) {
-          event.preventDefault()
-          setInfoOpen(false)
         } else {
           event.preventDefault()
           const historyIndex = window.history.state?.idx
@@ -116,12 +117,7 @@ export default function TestRunner() {
         return
       }
 
-      if (
-        viewerImage ||
-        helpOpen ||
-        infoOpen ||
-        !questions
-      )
+      if (viewerImage || helpOpen || !questions)
         return
       if (event.key === 'ArrowRight') {
         event.preventDefault()
@@ -137,7 +133,6 @@ export default function TestRunner() {
   }, [
     viewerImage,
     helpOpen,
-    infoOpen,
     questions,
     index,
     navigate,
@@ -368,7 +363,8 @@ export default function TestRunner() {
         )
       )
       setResult(finished)
-      setQuestionGridOpen(true)
+      setQuestionGridOpen(false)
+      setHeaderTitleOpen(false)
     } catch (reason) {
       finishedRef.current = false
       setError(reason.message || String(reason))
@@ -388,6 +384,25 @@ export default function TestRunner() {
     ? null
     : fallbackImageUrl || noQuestionImage
   const cachedFallbackImage = useCachedImageUrl(fallbackImageSource)
+  const questionSaved =
+    savedQuestionState.id === currentQuestion?.id && savedQuestionState.saved
+
+  useEffect(() => {
+    let active = true
+    setSavedQuestionState({ id: currentQuestion?.id ?? null, saved: false })
+    if (currentQuestion?.id == null) return undefined
+    window.api.saved
+      .has(currentQuestion.id)
+      .then((saved) => {
+        if (active) setSavedQuestionState({ id: currentQuestion.id, saved })
+      })
+      .catch((reason) => {
+        if (active) setError(reason.message || String(reason))
+      })
+    return () => {
+      active = false
+    }
+  }, [currentQuestion?.id])
 
   useEffect(() => {
     if (currentQuestion?.imageUrl && cachedQuestionImage.error) {
@@ -428,22 +443,6 @@ export default function TestRunner() {
   const canShowHelp = Boolean(q.explanation || q.explanationImageUrl)
   const canOpenHelp =
     canShowHelp && (lessonStudyMode || Boolean(params.teacherMode))
-  const bankVariantTitle = q.bankVariantNumber
-    ? t(
-        q.bankVariantKind === 'admin-new'
-          ? 'newVariantNumber'
-          : 'variantNumber',
-        { count: q.bankVariantNumber }
-      )
-    : null
-  const displayedVariantTitle =
-    params.mode === 'variant' && params.variantKind === 'manual'
-      ? title
-      : bankVariantTitle
-  const displayedVariantPosition =
-    params.mode === 'variant' && params.variantKind === 'manual'
-      ? index + 1
-      : q.bankVariantPosition
   const questionGridRows = Math.min(3, Math.ceil(questions.length / 30))
   const questionGridHeight =
     questionGridRows * 44 + Math.max(0, questionGridRows - 1) * 6 + 12
@@ -468,6 +467,19 @@ export default function TestRunner() {
       setTopicTestStarted(true)
     } catch (reason) {
       setError(reason.message || String(reason))
+    }
+  }
+
+  async function toggleQuestionSaved() {
+    if (savingQuestion) return
+    setSavingQuestion(true)
+    try {
+      const saved = await window.api.saved.toggle(q.id)
+      setSavedQuestionState({ id: q.id, saved })
+    } catch (reason) {
+      setError(reason.message || String(reason))
+    } finally {
+      setSavingQuestion(false)
     }
   }
 
@@ -582,6 +594,31 @@ export default function TestRunner() {
     navigate('/run', { replace: true, state: newParams })
   }
 
+  function startQuestionGridSwipe(event) {
+    const touch = event.touches[0]
+    if (!touch) return
+    questionGridTouchRef.current = {
+      startY: touch.clientY,
+      scrollTop: questionGridRef.current?.scrollTop ?? 0,
+    }
+  }
+
+  function finishQuestionGridSwipe(event) {
+    const start = questionGridTouchRef.current
+    questionGridTouchRef.current = null
+    const touch = event.changedTouches[0]
+    if (!start || !touch) return
+    const distance = touch.clientY - start.startY
+    if (Math.abs(distance) < 36) return
+    if (distance < 0 && !questionGridOpen) {
+      setQuestionGridOpen(true)
+      ignoreQuestionGridClickUntilRef.current = Date.now() + 500
+    } else if (distance > 0 && questionGridOpen && start.scrollTop <= 0) {
+      setQuestionGridOpen(false)
+      ignoreQuestionGridClickUntilRef.current = Date.now() + 500
+    }
+  }
+
   function questionStatus(question, questionIndex) {
     const answer = answers[question.id]
     const pending = questionIndex === index && pendingIndex != null
@@ -609,80 +646,21 @@ export default function TestRunner() {
               <span className="q-chip">
                 {index + 1} / {questions.length}
               </span>
-              <button
-                className="btn test-info-btn"
-                type="button"
-                onClick={() => {
-                  setHelpOpen(false)
-                  setInfoOpen((open) => !open)
-                }}
-                aria-label={t('questionInfo')}
-                aria-expanded={infoOpen}
-                title={t('questionInfo')}
-              >
-                ?
-              </button>
             </div>
-            {infoOpen && (
-              <div className="test-question-info" role="status">
-                <strong>{t('questionInfo')}</strong>
-                <div>
-                  <span>{t('sectionLabel')}</span>
-                  <b>{q.sectionTitle || t('notAvailable')}</b>
-                </div>
-                <div>
-                  <span>{t('lessonLabel')}</span>
-                  <b>{q.lessonTitle || t('notAvailable')}</b>
-                </div>
-                <div>
-                  <span>{t('variantLabel')}</span>
-                  <b>{displayedVariantTitle || t('notAvailable')}</b>
-                </div>
-                <div>
-                  <span>{t('questionPositionLabel')}</span>
-                  <b>{displayedVariantPosition || t('notAvailable')}</b>
-                </div>
-                <div>
-                  <span>{t('currentTestPosition')}</span>
-                  <b>
-                    {index + 1} / {questions.length}
-                  </b>
-                </div>
-              </div>
-            )}
             {result && (
               <div
-                className={`test-result-summary${result.percent < 90 ? ' failed' : ' passed'}`}
+                className={`test-result-summary${result.percent >= 90 ? ' passed' : ' failed'}`}
                 role="status"
               >
-                {(isRealExam ||
-                  params.mode === 'section-exam' ||
-                  params.teacherMode ||
-                  (lessonMode && topicTestStarted)) && (
-                  <span>
-                    {result.percent >= 90
-                      ? t('examPassedShort')
-                      : t('examNotPassedShort')}
-                  </span>
-                )}
+                <span>
+                  {result.percent >= 90
+                    ? t('examPassedShort')
+                    : t('examNotPassedShort')}
+                </span>
                 <strong>{result.percent}%</strong>
               </div>
             )}
             <div className="test-topbar-actions">
-              {canOpenHelp && (
-                <button
-                  className="btn help-icon-btn"
-                  type="button"
-                  onClick={() => {
-                    setInfoOpen(false)
-                    setHelpOpen(true)
-                  }}
-                  aria-label={t('help')}
-                  title={t('help')}
-                >
-                  !
-                </button>
-              )}
               <button
                 className="btn header-title-toggle"
                 type="button"
@@ -699,6 +677,19 @@ export default function TestRunner() {
                   />
                 </svg>
               </button>
+              {canOpenHelp && (
+                <button
+                  className="btn help-icon-btn"
+                  type="button"
+                  onClick={() => {
+                    setHelpOpen(true)
+                  }}
+                  aria-label={t('help')}
+                  title={t('help')}
+                >
+                  !
+                </button>
+              )}
               {timer.formatted && (
                 <span
                   className={
@@ -749,6 +740,18 @@ export default function TestRunner() {
           </div>
 
           <div className="glass question-card">
+            <div className="question-save-bar">
+              <button
+                type="button"
+                className={`btn question-save-btn${questionSaved ? ' is-saved' : ''}`}
+                onClick={() => void toggleQuestionSaved()}
+                disabled={savingQuestion}
+                aria-pressed={questionSaved}
+              >
+                <IconBookmark />
+                {t(questionSaved ? 'removeSavedQuestion' : 'saveQuestion')}
+              </button>
+            </div>
             <div className="question-layout">
               <div className="question-text">{q.text}</div>
               <div className="question-visual">
@@ -857,7 +860,8 @@ export default function TestRunner() {
                         }
                       >
                         <strong className="option-label">
-                          F{optionIndex + 1}
+                          <span className="key-f">F</span>
+                          {optionIndex + 1}
                         </strong>
                         <span>{option}</span>
                       </button>
@@ -877,12 +881,15 @@ export default function TestRunner() {
               aria-label={t('previous')}
               title={t('previous')}
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
+              <span className="test-nav-chevron" aria-hidden="true">‹</span>
             </button>
             <div
               className={`question-grid-panel${questionGridOpen ? ' is-open' : ''}`}
+              onTouchStart={startQuestionGridSwipe}
+              onTouchEnd={finishQuestionGridSwipe}
+              onTouchCancel={() => {
+                questionGridTouchRef.current = null
+              }}
             >
               <div
                 className="q-grid"
@@ -905,6 +912,7 @@ export default function TestRunner() {
                       key={question.id}
                       className={questionStatus(question, questionIndex)}
                       onClick={() => {
+                        if (Date.now() < ignoreQuestionGridClickUntilRef.current) return
                         goTo(questionIndex)
                         setQuestionGridOpen(false)
                       }}
@@ -916,24 +924,6 @@ export default function TestRunner() {
                   ))}
                 </div>
               </div>
-              <button
-                className="btn question-grid-toggle"
-                type="button"
-                onClick={() => setQuestionGridOpen((open) => !open)}
-                aria-label={t(
-                  questionGridOpen ? 'closeQuestionList' : 'openQuestionList'
-                )}
-                aria-expanded={questionGridOpen}
-                title={t(
-                  questionGridOpen ? 'closeQuestionList' : 'openQuestionList'
-                )}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d={questionGridOpen ? 'm6 9 6 6 6-6' : 'm6 15 6-6 6 6'}
-                  />
-                </svg>
-              </button>
             </div>
             <button
               className="btn test-nav-arrow"
@@ -942,9 +932,7 @@ export default function TestRunner() {
               aria-label={t('next')}
               title={t('next')}
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m9 18 6-6-6-6" />
-              </svg>
+              <span className="test-nav-chevron" aria-hidden="true">›</span>
             </button>
           </div>
         </div>

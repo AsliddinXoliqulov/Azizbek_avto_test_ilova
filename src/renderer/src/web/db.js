@@ -8,13 +8,14 @@ const STORES = {
   variants: 'id',
   attempts: 'id',
   errors: 'qid',
+  saved: 'id',
 }
 
 let dbPromise = null
 function open() {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1)
+      const req = indexedDB.open(DB_NAME, 2)
       req.onupgradeneeded = () => {
         const db = req.result
         for (const [name, keyPath] of Object.entries(STORES)) {

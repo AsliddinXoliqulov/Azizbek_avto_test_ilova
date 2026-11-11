@@ -4,8 +4,11 @@ import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { ConfirmProvider } from './components/ConfirmProvider'
+import '@fontsource-variable/manrope'
+import '@fontsource-variable/unbounded'
 import './styles/index.css'
 import './styles/mobile.css'
+import './styles/app.css'
 
 document.documentElement.classList.add('web-app')
 
