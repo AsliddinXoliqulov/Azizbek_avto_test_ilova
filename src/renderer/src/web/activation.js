@@ -78,6 +78,14 @@ export async function requireReactivation() {
   return status()
 }
 
+export async function logout() {
+  await metaSet('activated', '0')
+  await metaSet('activation_recheck_required', '0')
+  await metaSet('activation_code', '')
+  await metaSet('activated_at', '')
+  return status()
+}
+
 export async function getSavedActivationCode() {
   const code = metaGet('activation_code')
   if (!code) return { code: '', error: null }

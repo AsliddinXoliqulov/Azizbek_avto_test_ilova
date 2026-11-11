@@ -60,6 +60,11 @@
     gap: 8px;
     padding: 8px 10px;
   }
+  html.web-app .test-topbar:not(.is-compact) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+  }
   html.web-app .test-topbar-heading {
     width: 100%;
     min-width: 0;
@@ -68,12 +73,7 @@
     display: none;
   }
   html.web-app .test-topbar.is-compact .test-result-summary {
-    position: static;
-    order: -1;
-    width: 100%;
-    max-width: none;
-    justify-content: center;
-    transform: none;
+    display: none;
   }
   html.web-app .test-topbar.is-compact .test-topbar-actions {
     flex: 0 0 100%;
@@ -82,17 +82,32 @@
   html.web-app .test-topbar-actions .header-title-toggle {
     display: grid;
     place-items: center;
-    width: 30px;
-    min-width: 30px;
-    max-width: 30px;
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
     height: 30px;
     min-height: 30px;
-    flex: 0 0 30px;
+    flex: 0 0 36px;
     padding: 0;
     margin-right: auto;
     border-radius: 50%;
     box-sizing: border-box;
     line-height: 0;
+    border: 1px solid var(--stroke);
+    background: rgb(var(--surface-2));
+    box-shadow: none;
+    transition: none;
+  }
+  html.web-app .test-topbar-actions .header-title-toggle:hover,
+  html.web-app .test-topbar-actions .header-title-toggle:active,
+  html.web-app .test-topbar-actions .header-title-toggle:focus,
+  html.web-app .test-topbar-actions .header-title-toggle:focus-visible {
+    border-color: var(--stroke);
+    background: rgb(var(--surface-2));
+    box-shadow: none;
+    transform: none;
+    outline: 1px solid var(--stroke);
+    outline-offset: 0;
   }
   html.web-app .test-topbar.is-compact .test-topbar-heading .q-chip {
     display: none;
@@ -105,6 +120,25 @@
   html.web-app .test-topbar-heading .q-chip {
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+  html.web-app .test-topbar:not(.is-compact) > .test-result-summary {
+    position: static;
+    left: auto;
+    display: flex;
+    width: 100%;
+    min-height: 28px;
+    max-width: none;
+    justify-content: center;
+    flex: none;
+    gap: 4px;
+    transform: none;
+    white-space: nowrap;
+  }
+  html.web-app .test-topbar:not(.is-compact) > .test-result-summary span {
+    font-size: 12px;
+  }
+  html.web-app .test-topbar:not(.is-compact) > .test-result-summary strong {
+    font-size: 14px;
   }
   html.web-app .header-title-toggle svg {
     display: block;
@@ -119,7 +153,7 @@
   }
   html.web-app .question-card {
     min-height: 0;
-    padding: 12px;
+    padding: 0;
     overscroll-behavior: contain;
   }
   html.web-app .question-layout {
@@ -129,18 +163,26 @@
   }
   html.web-app .question-layout > .question-text {
     flex: none;
+    padding-inline: 12px;
     line-height: 1.5;
     overflow-wrap: anywhere;
   }
   html.web-app .question-visual {
+    order: -1;
     flex: none;
     width: 100%;
-    height: clamp(150px, 28dvh, 230px);
-    min-height: 150px;
+    height: clamp(170px, 32dvh, 250px);
+    min-height: 170px;
+    padding: 0;
+    border-radius: 16px 16px 0 0;
+  }
+  html.web-app .question-visual .question-image {
+    border-radius: 12px 12px 0 0;
   }
   html.web-app .question-copy {
     flex: none;
     width: 100%;
+    padding: 0 12px 12px;
   }
   html.web-app .option-btn {
     min-height: 48px;
@@ -154,7 +196,7 @@
     min-height: 64px;
     gap: 6px;
     justify-content: flex-start;
-    padding: 18px 6px 6px;
+    padding: 4px 6px 6px;
     border-radius: 30px;
   }
   html.web-app .question-grid-panel {
@@ -209,16 +251,16 @@
     display: grid;
     width: 100%;
     min-width: 100%;
-    grid-template-columns: repeat(auto-fill, minmax(25px, 1fr)) !important;
-    grid-auto-rows: 28px;
+    grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)) !important;
+    grid-auto-rows: 36px;
   }
   html.web-app .question-grid-panel .q-dot {
     flex: 0 0 30px;
     width: 30px;
-    height: 28px;
-    min-height: 28px;
+    height: 36px;
+    min-height: 36px;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 14px;
   }
   html.web-app .question-grid-panel.is-open .q-dot {
     width: 100%;
@@ -247,12 +289,6 @@
     height: 40px;
     min-height: 40px;
     font-size: 14px;
-  }
-  html.web-app .test-nav-arrow {
-    flex: 0 0 40px;
-    width: 40px;
-    min-width: 40px;
-    height: 40px;
   }
 }
 

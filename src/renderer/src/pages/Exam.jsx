@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { IconGrid } from '../components/Icons'
 import { useLanguage, useUi } from '../i18n'
 import { useDatabaseRevision } from '../web/useDatabaseRevision'
 import sectionOneIcon from '../images/1bolim.svg'
@@ -136,14 +137,17 @@ export default function Exam() {
                 </h3>
               </button>
             ))}
+            <button
+              type="button"
+              className="glass menu-card exam-section-card exam-all-card"
+              onClick={() => setCountPrompt({ section: null })}
+            >
+              <span className="exam-section-icon exam-all-icon">
+                <IconGrid />
+              </span>
+              <h3>{t('all')}</h3>
+            </button>
           </div>
-          <button
-            type="button"
-            className="glass menu-card exam-all-card"
-            onClick={() => setCountPrompt({ section: null })}
-          >
-            <h3>{t('all')}</h3>
-          </button>
         </div>
       )}
 

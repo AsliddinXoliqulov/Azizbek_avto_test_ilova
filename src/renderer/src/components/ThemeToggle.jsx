@@ -17,7 +17,7 @@ function applyTheme(theme) {
   }
 }
 
-export default function ThemeToggle() {
+export default function ThemeToggle({ menuItem = false }) {
   const [theme, setThemeState] = useState(
     () => document.documentElement.getAttribute('data-theme') || 'dark'
   )
@@ -39,16 +39,25 @@ export default function ThemeToggle() {
 
   const nextTheme = theme === 'light' ? 'dark' : 'light'
   const currentLabel = theme === 'light' ? t('themeDay') : t('themeNight')
+  const ThemeIcon = theme === 'light' ? IconSun : IconMoon
 
   return (
     <button
-      className="titlebar-cycle-btn theme-cycle-btn"
+      className={`titlebar-cycle-btn theme-cycle-btn${menuItem ? ' profile-setting-button' : ''}`}
       type="button"
       onClick={() => chooseTheme(nextTheme)}
       aria-label={`${t('theme')}: ${currentLabel}`}
       title={`${t('theme')}: ${currentLabel}`}
     >
-      {theme === 'light' ? <IconSun /> : <IconMoon />}
+      <ThemeIcon aria-hidden="true" />
+      {menuItem && (
+        <>
+          <span>{t('theme')}</span>
+          <span className="profile-setting-value">
+            {theme === 'light' ? t('themeDayShort') : t('themeNightShort')}
+          </span>
+        </>
+      )}
     </button>
   )
 }

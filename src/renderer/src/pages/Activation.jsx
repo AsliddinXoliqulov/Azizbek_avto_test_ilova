@@ -44,24 +44,6 @@ export default function Activation({ onActivated, notice = '' }) {
     }
   }
 
-  async function retryDevice() {
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await window.api.activation.retryDeviceActivation(code)
-      if (result.ok) onActivated?.()
-      else setError(
-        result.error === 'NO_SAVED_CODE'
-          ? t('activationNoSavedCode')
-          : result.message || t('activationError')
-      )
-    } catch (retryError) {
-      setError(retryError.message || t('activationError'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="activation-wrap">
       <form className="glass activation-card" onSubmit={submit}>
@@ -78,8 +60,11 @@ export default function Activation({ onActivated, notice = '' }) {
           <input
             className="input code-input"
             value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="WEBXXXXXXXX"
+            onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11))}
+            placeholder="000000"
+            type="text"
+            inputMode="numeric"
+            pattern="([0-9]{6}|WEB[A-Z0-9]{8})"
             maxLength={11}
             autoFocus
           />
@@ -88,21 +73,9 @@ export default function Activation({ onActivated, notice = '' }) {
         {notice && <div className="error-text">{t(notice)}</div>}
         {error && <div className="error-text">{error}</div>}
 
-        <div className={`activation-actions${notice ? ' has-retry' : ''}`}>
-          {notice && (
-            <button
-              type="button"
-              className="btn btn-primary btn-lg btn-block"
-              onClick={() => void retryDevice()}
-              disabled={loading}
-            >
-              {loading ? t('activationChecking') : t('activationRetry')}
-            </button>
-          )}
+        <div className="activation-actions">
           <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
-            {loading
-              ? t('activationChecking')
-              : t(notice ? 'activateWithCode' : 'activate')}
+            {loading ? t('activationChecking') : t('login')}
           </button>
         </div>
       </form>

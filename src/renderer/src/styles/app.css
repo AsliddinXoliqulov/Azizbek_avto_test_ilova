@@ -152,7 +152,7 @@ html.web-app #root {
     margin-inline: auto;
   }
   .content:has(.test-page) {
-    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 10px calc(28px + env(safe-area-inset-bottom, 0px));
     background: transparent;
     overflow: hidden;
   }
@@ -311,7 +311,7 @@ html.web-app #root {
     top: calc(100% + 8px);
     right: 0;
     z-index: 60;
-    min-width: 200px;
+    min-width: 250px;
     padding: 6px;
     display: grid;
     gap: 2px;
@@ -355,12 +355,74 @@ html.web-app #root {
   .titlebar-popover button.active span {
     font-weight: 800;
   }
+  .profile-menu-action {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .titlebar-popover .profile-menu-action > .profile-menu-link {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .titlebar-popover button.profile-clear-button {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    color: var(--text-dim);
+  }
+  .titlebar-popover button.profile-clear-button:hover,
+  .titlebar-popover button.profile-clear-button:focus-visible {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    outline: none;
+  }
+  .titlebar-popover button.profile-clear-button svg {
+    color: inherit;
+  }
   .titlebar-popover-note {
     margin: 4px 8px 6px;
     color: var(--text-dim);
     font-size: 12px;
     line-height: 1.45;
     max-width: 240px;
+  }
+  .profile-menu-divider {
+    height: 1px;
+    margin: 4px 8px;
+    background: var(--stroke);
+  }
+  html.web-app #root .titlebar-popover .profile-setting-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 11px;
+    color: var(--text);
+    background: transparent;
+    box-shadow: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  html.web-app #root .titlebar-popover .profile-setting-button:hover,
+  html.web-app #root .titlebar-popover .profile-setting-button:focus-visible {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    outline: none;
+  }
+  html.web-app #root .titlebar-popover .profile-setting-button svg {
+    width: 19px;
+    height: 19px;
+    flex: none;
+  }
+  .profile-setting-value {
+    margin-left: auto;
+    color: var(--text-dim);
+    font-size: 12px;
   }
   .win-controls {
     display: none !important;
@@ -895,10 +957,10 @@ html.web-app #root {
   }
   .exam-section-card {
     min-height: 118px;
-    padding: 14px;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
+    padding: 12px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     background:
       radial-gradient(
         120% 100% at 0% 0%,
@@ -913,39 +975,40 @@ html.web-app #root {
   .exam-section-card h3 {
     font-family: var(--font-display);
     font-size: 14px;
+    text-align: center;
   }
   .exam-section-icon {
-    width: 44px;
-    height: 44px;
+    width: 60px;
+    height: 60px;
     display: grid;
     place-items: center;
     border-radius: 14px;
     background: color-mix(in srgb, var(--accent) 14%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    object-fit: contain;
   }
   .exam-section-icon img,
   .exam-section-icon svg {
-    width: 30px;
-    height: 30px;
+    width: 38px;
+    height: 38px;
+  }
+  .exam-all-icon svg {
+    color: #38bdf8;
+    filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.65));
   }
   .exam-all-card {
-    grid-column: 1 / -1;
-    min-height: 62px;
+    grid-column: auto;
+    width: 100%;
+    min-height: 118px;
+    margin: 0;
+    padding: 12px;
     align-items: center;
     justify-content: center;
-    border-color: color-mix(in srgb, var(--accent) 50%, var(--stroke));
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--accent) 28%, rgb(var(--surface))),
-      rgb(var(--surface))
-    );
+    gap: 8px;
   }
   .exam-all-card h3 {
     text-align: center;
     font-family: var(--font-display);
-  }
-  .exam-all-card::after {
-    display: none;
   }
 }
 
@@ -1242,17 +1305,15 @@ html.web-app #root {
   }
 
   .question-card {
-    padding: 14px 14px 18px;
+    padding: 0;
     border-radius: 22px;
     gap: 12px;
   }
-  .question-save-bar {
-    margin-bottom: 4px;
-  }
-  .question-save-btn {
-    min-height: 36px;
-    padding: 0 10px;
-    font-size: 13px;
+  .question-image-save-btn {
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
   }
   .question-layout > .question-text {
     padding-bottom: 12px;
@@ -1263,24 +1324,24 @@ html.web-app #root {
     letter-spacing: -0.005em;
   }
   .question-visual {
-    height: clamp(128px, 24dvh, 220px);
-    min-height: 128px;
-    padding: 6px;
-    border-radius: 16px;
-    background: rgb(var(--surface-2));
+    height: clamp(148px, 27dvh, 240px);
+    min-height: 148px;
+    padding: 0;
+    border-radius: 16px 16px 0 0;
+    background: transparent;
     overflow: hidden;
   }
   .question-image {
-    border-radius: 12px;
+    border-radius: 12px 12px 0 0;
     cursor: zoom-in;
   }
   .options {
     gap: 9px;
   }
   .option-btn {
-    min-height: 54px;
-    padding: 10px 14px 10px 10px;
-    gap: 12px;
+    min-height: 46px;
+    padding: 7px 12px;
+    gap: 8px;
     border: 1.5px solid var(--stroke-strong);
     border-radius: 16px;
     background: rgb(var(--surface-2));
@@ -1298,19 +1359,22 @@ html.web-app #root {
   .option-btn:active:not(:disabled) {
     transform: scale(0.985);
   }
-  .option-btn > span:not(.key-f) {
+  .option-btn > span {
     min-width: 0;
     overflow-wrap: anywhere;
   }
   .option-label {
     flex: none;
-    align-self: center;
-    min-width: 34px;
-    height: 34px;
+    align-self: stretch;
+    min-width: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin: 0;
-    padding: 0 8px;
-    border-radius: 11px;
-    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    padding: 0;
+    margin-right: 8px;
+    border-right: 1px solid var(--stroke-strong);
+    background: transparent;
     color: var(--accent);
     font-size: 14px;
     font-weight: 800;
@@ -1332,12 +1396,12 @@ html.web-app #root {
   }
   .option-btn.correct .option-label,
   .option-btn.lesson-answer-correct .option-label {
-    background: var(--good);
-    color: #04140d;
+    background: transparent;
+    color: var(--good);
   }
   .option-btn.incorrect .option-label {
-    background: var(--bad);
-    color: #fff;
+    background: transparent;
+    color: var(--bad);
   }
   .option-btn:disabled {
     opacity: 1;
@@ -1347,13 +1411,9 @@ html.web-app #root {
   }
 
   .test-navigation {
-    padding: 8px 8px 8px;
+    padding: 4px 8px 8px;
     border-radius: 24px;
     background: rgb(var(--surface));
-  }
-  .test-nav-arrow {
-    border-radius: 14px;
-    background: rgb(var(--surface-2));
   }
   .q-dot {
     border-radius: 11px;
@@ -1389,31 +1449,25 @@ html.web-app #root {
     background: rgba(3, 7, 15, 0.94);
   }
 }
-/* Telefon/planshet yotiq holatida: javoblar chapda, rasm o'ngda */
+/* Yotiq holatda ham savol rasmi matnning ustida qoladi. */
 @media (orientation: landscape) and (min-width: 700px) {
   html.web-app #root .question-layout {
     display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    grid-template-rows: max-content 1fr;
-    gap: 10px 14px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: max-content max-content auto;
+    gap: 8px;
   }
   html.web-app #root .question-layout > .question-text {
     grid-column: 1 / -1;
+    grid-row: 2;
   }
   html.web-app #root .question-copy {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 3;
   }
   html.web-app #root .question-visual {
-    grid-column: 2;
-    grid-row: 2;
-    height: 100%;
-  }
-}
-/* F1/F2 belgisi faqat klaviaturali qurilmada */
-@media (hover: none), (max-width: 900px) {
-  html.web-app .key-f {
-    display: none;
+    grid-column: 1;
+    grid-row: 1;
   }
 }
 

@@ -21,8 +21,9 @@ export const IconBack = (props) => (
 )
 export const IconBook = (props) => (
   <svg {...base} {...props}>
-    <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" />
-    <path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5M9 8h7M9 12h5" />
+    <path d="M12 7.5c-2.2-1.5-4.5-2-7-2-.9 0-1.7.1-2.5.4v13.4c.8-.3 1.6-.4 2.5-.4 2.7 0 5 .6 7 1.8" />
+    <path d="M12 7.5c2.2-1.5 4.5-2 7-2 .9 0 1.7.1 2.5.4v13.4c-.8-.3-1.6-.4-2.5-.4-2.7 0-5 .6-7 1.8" />
+    <path d="M12 7.5v13.2" />
   </svg>
 )
 export const IconExam = (props) => (
@@ -76,6 +77,16 @@ export const IconWarn = (props) => (
 export const IconBookmark = (props) => (
   <svg {...base} {...props}>
     <path d="M6 3.8A1.8 1.8 0 0 1 7.8 2h8.4A1.8 1.8 0 0 1 18 3.8V22l-6-4-6 4z" />
+  </svg>
+)
+export const IconTrash = (props) => (
+  <svg {...base} {...props}>
+    <path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6" />
+  </svg>
+)
+export const IconLogOut = (props) => (
+  <svg {...base} {...props}>
+    <path d="M10 17l5-5-5-5m5 5H3m9-9h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" />
   </svg>
 )
 export const IconGlobe = (props) => (

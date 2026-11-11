@@ -1,7 +1,7 @@
 // Kompyuter ilovasidagi localdb.js mantiqining brauzerdagi (IndexedDB + xotira) ko'chirmasi.
 // Natijalar shakli window.api bilan bir xil, shuning uchun interfeys o'zgarishsiz ishlaydi.
 import * as idb from './db'
-import { publicImageUrl } from './supabase'
+import { publicImageUrl, supabase } from './supabase'
 
 const CUSTOM_SECONDS_PER_QUESTION = 75
 const LANGUAGES = new Set(['uz-Latn', 'uz-Cyrl', 'ru'])
@@ -62,6 +62,125 @@ export const metaGet = (key) => (key in state.kv ? state.kv[key] : null)
 export function metaSet(key, value) {
   state.kv[key] = value
   return idb.put('kv', { key, value })
+}
+
+function progressIdentity() {
+  const code = metaGet('activation_code')
+  const deviceId = metaGet('device_id')
+  if (!code || !deviceId) throw new Error('DEVICE_NOT_ACTIVATED')
+  return { code, deviceId }
+}
+
+function progressQueueRow(code, kind, questionId, enabled, createdAt) {
+  return {
+    id: `${code}:${kind}:${questionId}`,
+    code,
+    kind,
+    question_id: questionId,
+    enabled,
+    created_at: createdAt,
+    revision: `${Date.now()}-${Math.random()}`,
+  }
+}
+
+async function queueQuestionState(kind, questionId, enabled, createdAt) {
+  const { code } = progressIdentity()
+  await idb.put(
+    'progressQueue',
+    progressQueueRow(code, kind, questionId, enabled, createdAt)
+  )
+}
+
+export async function flushActivationProgress() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false
+  const { code, deviceId } = progressIdentity()
+  const pending = (await idb.getAll('progressQueue')).filter((row) => row.code === code)
+  for (const row of pending) {
+    const { error } = await supabase.rpc('set_web_activation_question_state', {
+      p_code: code,
+      p_device_id: deviceId,
+      p_question_id: row.question_id,
+      p_state_kind: row.kind,
+      p_enabled: row.enabled,
+      p_created_at: row.created_at,
+    })
+    if (error) throw error
+    const current = await idb.get('progressQueue', row.id)
+    if (current?.revision === row.revision) {
+      await idb.remove('progressQueue', row.id)
+    }
+  }
+  return true
+}
+
+export async function syncActivationProgress() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false
+  const { code, deviceId } = progressIdentity()
+
+  if (metaGet('progress_legacy_transfer_done') !== '1') {
+    const queued = []
+    for (const row of state.savedQuestions.values()) {
+      queued.push(progressQueueRow(code, 'saved', Number(row.id), true, row.added_at))
+    }
+    for (const row of state.errors.values()) {
+      queued.push(progressQueueRow(code, 'error', Number(row.qid), true, row.added_at))
+    }
+    await idb.putMany('progressQueue', queued)
+    await metaSet('progress_legacy_transfer_done', '1')
+  }
+
+  await flushActivationProgress()
+  const { data, error } = await supabase.rpc('get_web_activation_question_state', {
+    p_code: code,
+    p_device_id: deviceId,
+  })
+  if (error) throw error
+  if (!data || !Array.isArray(data.saved) || !Array.isArray(data.errors)) {
+    throw new Error('Foydalanuvchi savollari sinxronlash javobi noto‘g‘ri formatda.')
+  }
+
+  const saved = new Map(
+    data.saved.map((row) => {
+      const id = Number(row.question_id)
+      if (!Number.isSafeInteger(id) || id === 0) {
+        throw new Error('Saqlangan savol ID raqami noto‘g‘ri.')
+      }
+      return [id, { id, added_at: row.created_at }]
+    })
+  )
+  const errors = new Map(
+    data.errors.map((row) => {
+      const id = Number(row.question_id)
+      if (!Number.isSafeInteger(id) || id === 0) {
+        throw new Error('Xato savol ID raqami noto‘g‘ri.')
+      }
+      const key = String(id)
+      return [key, { qid: key, added_at: row.created_at }]
+    })
+  )
+
+  const pending = (await idb.getAll('progressQueue')).filter((row) => row.code === code)
+  for (const row of pending) {
+    const id = Number(row.question_id)
+    const rows = row.kind === 'saved' ? saved : errors
+    const key = row.kind === 'saved' ? id : String(id)
+    if (row.enabled) {
+      rows.set(key, row.kind === 'saved'
+        ? { id, added_at: row.created_at }
+        : { qid: String(id), added_at: row.created_at })
+    } else {
+      rows.delete(key)
+    }
+  }
+
+  await idb.clear('saved')
+  await idb.clear('errors')
+  await idb.putMany('saved', [...saved.values()])
+  await idb.putMany('errors', [...errors.values()])
+  state.savedQuestions = saved
+  state.errors = errors
+  await flushActivationProgress()
+  return true
 }
 
 // ---------- yordamchilar ----------
@@ -305,12 +424,32 @@ export function formatQuestions(list, includeAnswerKey = false) {
   })
 }
 
-export function listSavedQuestions() {
-  const saved = [...state.savedQuestions.values()]
+function savedQuestionList() {
+  return [...state.savedQuestions.values()]
     .sort((a, b) => cmp(b.added_at || '', a.added_at || ''))
     .map((row) => state.questions.get(Number(row.id)))
     .filter((question) => question && isUsable(question))
-  return formatQuestions(saved)
+}
+
+export function listSavedQuestions() {
+  return formatQuestions(savedQuestionList())
+}
+
+export async function clearSavedQuestions() {
+  const rows = [...state.savedQuestions.values()]
+  if (rows.length === 0) return 0
+
+  const { code } = progressIdentity()
+  const clearedAt = nowIso()
+  await idb.putMany(
+    'progressQueue',
+    rows.map((row) =>
+      progressQueueRow(code, 'saved', Number(row.id), false, clearedAt)
+    )
+  )
+  await idb.clear('saved')
+  state.savedQuestions.clear()
+  return rows.length
 }
 
 export function isQuestionSaved(questionId) {
@@ -325,11 +464,13 @@ export async function toggleSavedQuestion(questionId) {
   if (state.savedQuestions.has(id)) {
     await idb.remove('saved', id)
     state.savedQuestions.delete(id)
+    await queueQuestionState('saved', id, false, nowIso())
     return false
   }
   const row = { id, added_at: nowIso() }
   await idb.put('saved', row)
   state.savedQuestions.set(id, row)
+  await queueQuestionState('saved', id, true, row.added_at)
   return true
 }
 
@@ -498,7 +639,18 @@ export function pickQuestions({ mode, lessonId, sectionId, count, variantNumber,
         .sort((a, b) => cmp(b.added_at || '', a.added_at || ''))
         .map((e) => state.questions.get(Number(e.qid)))
         .filter((q) => q && isUsable(q))
-      return { title: 'Xatolar', questions: formatQuestions(list), seconds: null }
+      return {
+        title: 'Xatolar',
+        questions: formatQuestions(list, true),
+        seconds: null,
+      }
+    }
+    case 'saved': {
+      return {
+        title: 'Saqlangan savollar',
+        questions: formatQuestions(savedQuestionList(), true),
+        seconds: null,
+      }
     }
     default:
       throw new Error('Noma’lum test rejimi: ' + mode)
@@ -655,14 +807,33 @@ export async function answerQuestion({ attemptId, questionId, chosenIndex, mode 
   if (mode === 'errors' && feedback.isCorrect) {
     state.errors.delete(key)
     await idb.remove('errors', key)
+    await queueQuestionState('error', Number(questionId), false, nowIso())
   } else if (!feedback.isCorrect) {
     if (!state.errors.has(key)) {
       const row = { qid: key, added_at: nowIso() }
       state.errors.set(key, row)
       await idb.put('errors', row)
+      await queueQuestionState('error', Number(questionId), true, row.added_at)
     }
   }
   return feedback
+}
+
+export async function clearErrorQuestions() {
+  const rows = [...state.errors.values()]
+  if (rows.length === 0) return 0
+
+  const { code } = progressIdentity()
+  const clearedAt = nowIso()
+  await idb.putMany(
+    'progressQueue',
+    rows.map((row) =>
+      progressQueueRow(code, 'error', Number(row.qid), false, clearedAt)
+    )
+  )
+  await idb.clear('errors')
+  state.errors.clear()
+  return rows.length
 }
 
 export async function finishAttempt(attemptId) {

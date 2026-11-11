@@ -21,11 +21,13 @@ export default function App() {
   const [activated, setActivated] = useState(null) // null = yuklanmoqda
   const [activationNotice, setActivationNotice] = useState('')
   const [syncError, setSyncError] = useState('')
+  const [progressError, setProgressError] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [language, setLanguage] = useState('uz-Latn')
   const location = useLocation()
   const navigate = useNavigate()
   const contentRef = useRef(null)
+  const isTestScreen = location.pathname === '/run'
 
   const refreshBase = useCallback(async () => {
     setSyncError('')
@@ -61,6 +63,16 @@ export default function App() {
       setSyncError(error?.message || 'Noma’lum sinxronlash xatosi.')
     } finally {
       setSyncing(false)
+    }
+  }, [])
+
+  const refreshProgress = useCallback(async () => {
+    if (!navigator.onLine) return
+    try {
+      await window.api.progress.sync()
+    } catch (error) {
+      console.error('[progress] Foydalanuvchi savollari sinxronlanmadi:', error)
+      setProgressError(error?.message || 'Foydalanuvchi savollari sinxronlanmadi.')
     }
   }, [])
 
@@ -145,11 +157,22 @@ export default function App() {
 
   useEffect(() => {
     if (!activated) return undefined
-
     void refreshBase()
     window.addEventListener('online', refreshBase)
     return () => window.removeEventListener('online', refreshBase)
   }, [activated, refreshBase])
+
+  useEffect(() => {
+    if (!activated) return undefined
+
+    const offError = window.api.progress.onError(setProgressError)
+    void refreshProgress()
+    window.addEventListener('online', refreshProgress)
+    return () => {
+      offError()
+      window.removeEventListener('online', refreshProgress)
+    }
+  }, [activated, refreshProgress])
 
   useEffect(() => {
     if (!activated) return undefined
@@ -196,7 +219,12 @@ export default function App() {
   return (
     <LanguageContext.Provider value={{ language, setLanguage }}>
       <div className="app-shell">
-        <TitleBar />
+        {!isTestScreen && (
+          <TitleBar
+            showProgressLinks={!isWebApp || activated === true}
+            showLogout={!isWebApp || activated === true}
+          />
+        )}
         {activated === null ? null : !activated ? (
           <Activation
             notice={activationNotice}
@@ -218,6 +246,18 @@ export default function App() {
                     disabled={syncing}
                   >
                     {syncing ? 'Yuklanmoqda…' : 'Qayta urinish'}
+                  </button>
+                </div>
+              )}
+              {isWebApp && progressError && (
+                <div className="sync-error-banner" role="alert">
+                  <span>Xatolar va saqlangan savollar sinxronlanmadi: {progressError}</span>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => void refreshProgress()}
+                  >
+                    Qayta urinish
                   </button>
                 </div>
               )}
@@ -246,7 +286,7 @@ export default function App() {
             </main>
           </div>
         )}
-        {activated && location.pathname !== '/run' && <BottomNav />}
+        {activated && !isTestScreen && <BottomNav />}
       </div>
     </LanguageContext.Provider>
   )

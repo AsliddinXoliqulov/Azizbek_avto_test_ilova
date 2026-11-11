@@ -107,7 +107,7 @@ textarea {
   justify-content: space-between;
   padding: 0 15px 0 0;
   -webkit-app-region: drag;
-  background: rgb(var(--surface));
+  background: transparent;
   border-bottom: 1px solid var(--stroke);
 }
 .titlebar .brand {
@@ -395,7 +395,7 @@ textarea {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border: 0;
+  border: 1px solid #facc15;
   border-radius: 9px;
   color: var(--text);
   background: transparent;
@@ -1028,7 +1028,7 @@ textarea {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
-  padding: 14px;
+  /* padding: 14px; */
 }
 .q-dot {
   aspect-ratio: 1;
@@ -1059,8 +1059,8 @@ textarea {
 }
 
 .icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 28px;
+  height: 28px;
   border-radius: 10px;
   border: 1px solid var(--stroke);
   background: rgb(var(--surface));
@@ -1123,6 +1123,60 @@ textarea {
 }
 .help-viewer-overlay {
   z-index: 100;
+  perspective: 1200px;
+}
+.help-flip-card {
+  width: min(92vw, 900px);
+  height: min(90vh, 900px);
+  max-width: 1500px;
+  max-height: 1000px;
+  perspective: 1200px;
+}
+.help-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+  will-change: transform;
+}
+.help-flip-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.help-flip-image-face {
+  overflow: visible;
+}
+.help-flip-image-face .image-viewer-image {
+  max-width: min(calc(100vw - 48px), 1500px);
+  max-height: min(calc(100dvh - 48px), 1000px);
+}
+.help-flip-image-face .image-viewer-viewport {
+  overflow: visible;
+}
+.help-flip-text-face {
+  transform: rotateY(180deg);
+}
+.help-flip-text-face .help-modal-frame,
+html.web-app #root .help-flip-text-face .help-modal-frame {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  animation: none;
+  border-radius: 0;
+}
+.help-flip-text-face .help-modal-body {
+  overflow: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .help-flip-inner {
+    transition-duration: 0.01ms;
+  }
 }
 .help-viewer {
   width: min(92vw, 900px);
@@ -1294,25 +1348,7 @@ textarea {
   height: min(94vh, 1000px);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-.image-viewer-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex: none;
-}
-.image-viewer-toolbar > span {
-  min-width: 64px;
-  text-align: center;
-  color: #fff;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.image-viewer-close {
-  margin-left: 12px;
-  font-size: 23px !important;
+  gap: 0;
 }
 .image-viewer-viewport {
   position: relative;
@@ -1326,7 +1362,7 @@ textarea {
 }
 .image-viewer-image {
   max-width: 90vw;
-  max-height: 82vh;
+  max-height: 94vh;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -1339,13 +1375,6 @@ textarea {
 }
 .image-viewer-image.is-zoomed:active {
   cursor: grabbing;
-}
-.image-viewer-hint {
-  flex: none;
-  margin: 0;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 12px;
 }
 .sync-modal {
   position: relative;
@@ -2078,6 +2107,41 @@ textarea {
 .question-save-btn.is-saved {
   color: var(--accent);
 }
+.question-image-save-btn {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #facc15;
+  border-radius: 9px;
+  color: #facc15;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.question-image-save-btn:hover {
+  color: #facc15;
+  background: transparent;
+}
+.question-image-save-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.question-image-save-btn svg {
+  width: 20px;
+  height: 20px;
+}
+.question-image-save-btn.is-saved {
+  color: #facc15;
+}
+.question-image-save-btn.is-saved svg {
+  fill: currentColor;
+}
 .saved-question-list {
   display: grid;
   gap: 14px;
@@ -2131,8 +2195,8 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px;
-  border-radius: var(--radius-md);
+  padding: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: rgb(var(--surface));
   border: 1px solid var(--stroke);
 }
@@ -2171,27 +2235,6 @@ textarea {
   gap: 8px;
   padding: 8px 12px;
   overflow: visible;
-}
-.test-nav-arrow {
-  width: 42px;
-  min-width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  line-height: 0;
-}
-.test-nav-chevron {
-  display: block;
-  color: var(--text);
-  font-family: Arial, sans-serif;
-  font-size: 29px;
-  font-weight: 400;
-  line-height: 1;
-  text-align: center;
 }
 .test-topbar-actions .help-icon-btn {
   width: 38px;
@@ -2371,10 +2414,6 @@ textarea {
   .question-image-placeholder {
     min-height: 150px;
   }
-  .test-nav-arrow {
-    width: 38px;
-    min-width: 38px;
-  }
 }
 @media (max-width: 620px) {
   .home-page .menu-grid-list {
@@ -2475,13 +2514,6 @@ textarea {
   .test-navigation {
     gap: 5px;
     padding-inline: 7px;
-  }
-  .test-nav-arrow {
-    width: 34px;
-    min-width: 34px;
-    height: 38px;
-    flex-basis: 34px;
-    padding: 0;
   }
   .q-grid {
     height: 150px;
@@ -2620,7 +2652,7 @@ textarea {
 }
 .question-card {
   min-height: 0;
-  padding: 12px;
+  padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
@@ -2630,22 +2662,24 @@ textarea {
 }
 .question-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  grid-template-rows: max-content auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: max-content max-content auto;
   align-content: start;
-  gap: 8px 12px;
+  gap: 8px;
 }
 .question-layout > .question-text {
   grid-column: 1 / -1;
+  grid-row: 2;
+  padding-inline: 12px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--stroke);
 }
 .question-copy {
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 3;
   min-height: max-content;
   justify-content: flex-start;
-  padding: 0;
+  padding: 0 12px 12px;
 }
 .options {
   grid-template-columns: 1fr;
@@ -2657,11 +2691,11 @@ textarea {
   gap: 8px;
 }
 .question-visual {
-  grid-column: 2;
-  grid-row: 2;
+  grid-column: 1;
+  grid-row: 1;
   min-height: 0;
   height: 100%;
-  padding: 8px;
+  padding: 0;
   border: 1px solid var(--stroke);
   border-radius: var(--radius-md);
   background: rgb(var(--surface));

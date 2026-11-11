@@ -11,6 +11,10 @@ export default function DirectStart({ mode }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (mode === 'errors') {
+      navigate('/run', { replace: true, state: { mode: 'errors' } })
+      return
+    }
     window.api.tests.history()
       .then(setResults)
       .catch((reason) => setError(reason.message || String(reason)))

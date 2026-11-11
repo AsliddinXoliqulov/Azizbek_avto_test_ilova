@@ -68,12 +68,23 @@ const js = outputs.find((f) => f.endsWith('.js'))
 const css = outputs.find((f) => f.endsWith('.css'))
 
 let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8')
+const deploymentHost =
+  env.VERCEL_PROJECT_PRODUCTION_URL || env.VERCEL_URL || ''
+const deploymentUrl = deploymentHost
+  ? `https://${deploymentHost.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
+  : ''
+html = html
+  .replaceAll('__SITE_URL__', deploymentUrl || './')
+  .replaceAll(
+    '__SHARE_PREVIEW_URL__',
+    deploymentUrl ? `${deploymentUrl}/share-preview.png` : './share-preview.png'
+  )
 html = html.replace(/<script type="module" src="[^"]+"><\/script>/, `<script type="module" src="./${js}"></script>`)
 if (css) html = html.replace('</head>', `    <link rel="stylesheet" href="./${css}" />\n  </head>`)
 fs.writeFileSync(path.join(dist, 'index.html'), html)
 
 // Service worker: yig'ma fayllar ro'yxati va versiya
-const shell = ['./', './index.html', './manifest.webmanifest', './favicon.png', './icon-192.png', './icon-512.png', './apple-touch-icon.png', ...outputs.map((f) => './' + f)]
+const shell = ['./', './index.html', './manifest.webmanifest', './favicon.png', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './share-preview.png', ...outputs.map((f) => './' + f)]
 const version = crypto.createHash('sha1').update(shell.join('|') + fs.readFileSync(path.join(dist, js))).digest('hex').slice(0, 10)
 const sw = fs
   .readFileSync(path.join(publicDir, 'sw.js'), 'utf8')

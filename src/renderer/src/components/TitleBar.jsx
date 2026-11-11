@@ -3,12 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 import {
   IconBookmark,
-  IconChevronDown,
+  IconGlobe,
   IconHome,
+  IconLogOut,
+  IconTrash,
   IconUser,
   IconWarn,
 } from './Icons'
 import { useLanguage, useUi } from '../i18n'
+import { useConfirm } from './ConfirmProvider'
 import darkBrand from '../../../logo-dark.png'
 import lightBrand from '../../../logo-light.png'
 
@@ -31,18 +34,21 @@ function useDismiss(ref, open, close) {
   }, [ref, open, close])
 }
 
-export default function TitleBar() {
+export default function TitleBar({
+  showProgressLinks = true,
+  showLogout = true,
+}) {
   const t = useUi()
+  const confirm = useConfirm()
   const { language, setLanguage } = useLanguage()
   const location = useLocation()
   const navigate = useNavigate()
   const isHome = location.pathname === '/'
 
-  const [langOpen, setLangOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const langRef = useRef(null)
+  const [clearError, setClearError] = useState('')
+  const [logoutError, setLogoutError] = useState('')
   const profileRef = useRef(null)
-  useDismiss(langRef, langOpen, () => setLangOpen(false))
   useDismiss(profileRef, profileOpen, () => setProfileOpen(false))
 
   const languages = [
@@ -50,17 +56,64 @@ export default function TitleBar() {
     { code: 'uz-Cyrl', label: 'ЎЗ', title: t('cyrillic') },
     { code: 'ru', label: 'RU', title: t('russian') },
   ]
-  const current = languages.find((option) => option.code === language) || languages[0]
+  const currentLanguage =
+    languages.find((option) => option.code === language) || languages[0]
 
   async function selectLanguage(code) {
-    setLangOpen(false)
     await window.api.settings.setLanguage(code)
     setLanguage(code)
+  }
+
+  function cycleLanguage() {
+    const currentIndex = languages.findIndex(
+      (option) => option.code === currentLanguage.code
+    )
+    const nextLanguage = languages[(currentIndex + 1) % languages.length]
+    void selectLanguage(nextLanguage.code)
   }
 
   function openSection(path) {
     setProfileOpen(false)
     navigate(path)
+  }
+
+  async function clearQuestions(kind) {
+    const saved = kind === 'saved'
+    const title = saved ? 'clearSavedQuestions' : 'clearErrors'
+    const confirmed = await confirm({
+      title: t(title),
+      message: t(saved ? 'clearSavedQuestionsConfirm' : 'clearErrorsConfirm'),
+      confirmLabel: t('clear'),
+      cancelLabel: t('cancel'),
+      danger: true,
+    })
+    if (!confirmed) return
+
+    try {
+      setClearError('')
+      if (saved) await window.api.saved.clear()
+      else await window.api.errors.clear()
+    } catch (reason) {
+      setClearError(reason.message || String(reason))
+    }
+  }
+
+  async function logout() {
+    const confirmed = await confirm({
+      title: t('exitApp'),
+      message: t('exitConfirm'),
+      confirmLabel: t('exitApp'),
+      cancelLabel: t('cancel'),
+      danger: true,
+    })
+    if (!confirmed) return
+
+    try {
+      setLogoutError('')
+      await window.api.activation.logout()
+    } catch (reason) {
+      setLogoutError(reason.message || String(reason))
+    }
   }
 
   return (
@@ -96,50 +149,11 @@ export default function TitleBar() {
       </button>
 
       <div className="titlebar-actions">
-        <div className="titlebar-menu-wrap lang-wrap" ref={langRef}>
-          <button
-            type="button"
-            className={`titlebar-lang-btn${langOpen ? ' is-open' : ''}`}
-            onClick={() => {
-              setProfileOpen(false)
-              setLangOpen((open) => !open)
-            }}
-            aria-label={`${t('language')}: ${current.title}`}
-            aria-expanded={langOpen}
-            aria-haspopup="menu"
-          >
-            <span>{current.label}</span>
-            <IconChevronDown className="chev" />
-          </button>
-          {langOpen && (
-            <div className="titlebar-popover" role="menu">
-              {languages.map((option) => (
-                <button
-                  key={option.code}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={option.code === current.code}
-                  className={option.code === current.code ? 'active' : ''}
-                  onClick={() => void selectLanguage(option.code)}
-                >
-                  <b>{option.label}</b>
-                  <span>{option.title}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <ThemeToggle />
-
         <div className="titlebar-menu-wrap profile-wrap" ref={profileRef}>
           <button
             type="button"
             className={`titlebar-profile-btn${profileOpen ? ' is-open' : ''}`}
-            onClick={() => {
-              setLangOpen(false)
-              setProfileOpen((open) => !open)
-            }}
+            onClick={() => setProfileOpen((open) => !open)}
             aria-label={t('profile')}
             aria-expanded={profileOpen}
             aria-haspopup="menu"
@@ -151,14 +165,89 @@ export default function TitleBar() {
           </button>
           {profileOpen && (
             <div className="titlebar-popover profile-popover" role="menu">
-              <button type="button" role="menuitem" onClick={() => openSection('/errors')}>
-                <IconWarn />
-                <span>{t('profileErrors')}</span>
+              {showProgressLinks && (
+                <>
+                  <div className="profile-menu-action">
+                    <button
+                      type="button"
+                      className="profile-menu-link"
+                      role="menuitem"
+                      onClick={() => openSection('/errors')}
+                    >
+                      <IconWarn />
+                      <span>{t('profileErrors')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="profile-clear-button"
+                      role="menuitem"
+                      aria-label={t('clearErrors')}
+                      title={t('clearErrors')}
+                      onClick={() => void clearQuestions('errors')}
+                    >
+                      <IconTrash />
+                    </button>
+                  </div>
+                  <div className="profile-menu-action">
+                    <button
+                      type="button"
+                      className="profile-menu-link"
+                      role="menuitem"
+                      onClick={() => openSection('/saved')}
+                    >
+                      <IconBookmark />
+                      <span>{t('savedQuestions')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="profile-clear-button"
+                      role="menuitem"
+                      aria-label={t('clearSavedQuestions')}
+                      title={t('clearSavedQuestions')}
+                      onClick={() => void clearQuestions('saved')}
+                    >
+                      <IconTrash />
+                    </button>
+                  </div>
+                </>
+              )}
+              {clearError && (
+                <p className="titlebar-popover-note" role="alert">
+                  {clearError}
+                </p>
+              )}
+              {logoutError && (
+                <p className="titlebar-popover-note" role="alert">
+                  {logoutError}
+                </p>
+              )}
+              <div className="profile-menu-divider" />
+              <button
+                type="button"
+                className="profile-setting-button"
+                onClick={cycleLanguage}
+                aria-label={`${t('language')}: ${currentLanguage.title}`}
+                title={`${t('language')}: ${currentLanguage.title}`}
+              >
+                <IconGlobe aria-hidden="true" />
+                <span>{t('language')}</span>
+                <span className="profile-setting-value">
+                  {currentLanguage.label}
+                </span>
               </button>
-              <button type="button" role="menuitem" onClick={() => openSection('/saved')}>
-                <IconBookmark />
-                <span>{t('savedQuestions')}</span>
-              </button>
+              <ThemeToggle menuItem />
+              {showLogout && (
+                <button
+                  type="button"
+                  className="profile-setting-button"
+                  onClick={() => void logout()}
+                  aria-label={t('exitApp')}
+                  title={t('exitApp')}
+                >
+                  <IconLogOut aria-hidden="true" />
+                  <span>{t('exitApp')}</span>
+                </button>
+              )}
             </div>
           )}
         </div>

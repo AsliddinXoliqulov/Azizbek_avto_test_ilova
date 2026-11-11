@@ -3,7 +3,12 @@ import * as engine from './engine'
 import * as activation from './activation'
 import * as sync from './sync'
 
-const listeners = { changed: new Set(), required: new Set(), progress: new Set() }
+const listeners = {
+  changed: new Set(),
+  required: new Set(),
+  progress: new Set(),
+  progressError: new Set(),
+}
 const emit = (name, data) => listeners[name].forEach((cb) => cb(data))
 const subscribe = (name) => (cb) => {
   listeners[name].add(cb)
@@ -26,6 +31,18 @@ function guarded(fn) {
       throw new Error('DEVICE_NOT_ACTIVATED')
     }
     return fn(...args)
+  }
+}
+
+async function flushQuestionProgress() {
+  try {
+    const synced = await engine.flushActivationProgress()
+    if (synced) {
+      emit('progressError', '')
+      window.dispatchEvent(new Event('pdd:progress-updated'))
+    }
+  } catch (error) {
+    emit('progressError', error?.message || 'Foydalanuvchi savollari sinxronlanmadi.')
   }
 }
 
@@ -72,6 +89,12 @@ window.api = {
       await ready()
       return activation.requireReactivation()
     },
+    logout: async () => {
+      await ready()
+      const result = await activation.logout()
+      emit('changed', result)
+      return result
+    },
     getSavedCode: async () => {
       await ready()
       return activation.getSavedActivationCode()
@@ -84,6 +107,24 @@ window.api = {
     },
     onChanged: subscribe('changed'),
     onRequired: subscribe('required'),
+  },
+
+  progress: {
+    sync: async () => {
+      await ready()
+      try {
+        const synced = await engine.syncActivationProgress()
+        if (synced) {
+          emit('progressError', '')
+          window.dispatchEvent(new Event('pdd:progress-updated'))
+        }
+        return synced
+      } catch (error) {
+        emit('progressError', error?.message || 'Foydalanuvchi savollari sinxronlanmadi.')
+        throw error
+      }
+    },
+    onError: subscribe('progressError'),
   },
 
   sync: {
@@ -128,7 +169,26 @@ window.api = {
   saved: {
     list: guarded(() => engine.listSavedQuestions()),
     has: guarded((questionId) => engine.isQuestionSaved(questionId)),
-    toggle: guarded((questionId) => engine.toggleSavedQuestion(questionId)),
+    clear: guarded(async () => {
+      await engine.syncActivationProgress()
+      const count = await engine.clearSavedQuestions()
+      await flushQuestionProgress()
+      return count
+    }),
+    toggle: guarded(async (questionId) => {
+      const saved = await engine.toggleSavedQuestion(questionId)
+      await flushQuestionProgress()
+      return saved
+    }),
+  },
+
+  errors: {
+    clear: guarded(async () => {
+      await engine.syncActivationProgress()
+      const count = await engine.clearErrorQuestions()
+      await flushQuestionProgress()
+      return count
+    }),
   },
 
   tests: {
@@ -136,7 +196,11 @@ window.api = {
     activeAttempt: guarded((payload) => engine.findActiveAttempt(payload)),
     resume: guarded((payload) => engine.resumeAttempt(payload)),
     setProgress: guarded((payload) => engine.setAttemptProgress(payload)),
-    answer: guarded((payload) => engine.answerQuestion(payload)),
+    answer: guarded(async (payload) => {
+      const answer = await engine.answerQuestion(payload)
+      await flushQuestionProgress()
+      return answer
+    }),
     finish: guarded((attemptId) => engine.finishAttempt(attemptId)),
     history: guarded(() => engine.examHistory()),
     review: guarded((attemptId) => engine.reviewAttempt(attemptId)),

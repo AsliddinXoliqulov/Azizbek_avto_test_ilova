@@ -9,13 +9,14 @@ const STORES = {
   attempts: 'id',
   errors: 'qid',
   saved: 'id',
+  progressQueue: 'id',
 }
 
 let dbPromise = null
 function open() {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 2)
+      const req = indexedDB.open(DB_NAME, 3)
       req.onupgradeneeded = () => {
         const db = req.result
         for (const [name, keyPath] of Object.entries(STORES)) {
@@ -52,6 +53,9 @@ function run(store, mode, fn) {
 
 export const getAll = (store) =>
   run(store, 'readonly', (s) => s.getAll())
+
+export const get = (store, key) =>
+  run(store, 'readonly', (s) => s.get(key))
 
 export const put = (store, value) => run(store, 'readwrite', (s) => s.put(value))
 

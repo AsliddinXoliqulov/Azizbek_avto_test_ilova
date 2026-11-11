@@ -26,8 +26,9 @@ export default function TestRunner() {
   const [savedQuestionState, setSavedQuestionState] = useState({ id: null, saved: false })
   const [savingQuestion, setSavingQuestion] = useState(false)
   const [pendingIndex, setPendingIndex] = useState(null)
-  const [topicTestStarted, setTopicTestStarted] = useState(false)
+  const [studyTestStarted, setStudyTestStarted] = useState(false)
   const [earlyExamFailure, setEarlyExamFailure] = useState(false)
+  const [showExamResultNotice, setShowExamResultNotice] = useState(false)
   const [questionGridOpen, setQuestionGridOpen] = useState(false)
   const [headerTitleOpen, setHeaderTitleOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -45,8 +46,12 @@ export default function TestRunner() {
   const advanceTimerRef = useRef(null)
   const loadTokenRef = useRef(0)
   const imageDragRef = useRef(null)
+  const imagePointersRef = useRef(new Map())
+  const imagePinchRef = useRef(null)
+  const imageViewportRef = useRef(null)
   const questionGridRef = useRef(null)
   const questionGridTouchRef = useRef(null)
+  const questionSwipeTouchRef = useRef(null)
   const ignoreQuestionGridClickUntilRef = useRef(0)
 
   useEffect(() => () => window.clearTimeout(advanceTimerRef.current), [])
@@ -108,6 +113,9 @@ export default function TestRunner() {
         } else if (helpOpen) {
           event.preventDefault()
           setHelpOpen(false)
+        } else if (showExamResultNotice) {
+          event.preventDefault()
+          setShowExamResultNotice(false)
         } else {
           event.preventDefault()
           const historyIndex = window.history.state?.idx
@@ -117,7 +125,7 @@ export default function TestRunner() {
         return
       }
 
-      if (viewerImage || helpOpen || !questions)
+      if (viewerImage || helpOpen || showExamResultNotice || !questions)
         return
       if (event.key === 'ArrowRight') {
         event.preventDefault()
@@ -133,16 +141,30 @@ export default function TestRunner() {
   }, [
     viewerImage,
     helpOpen,
+    showExamResultNotice,
     questions,
     index,
     navigate,
   ])
 
   function zoomImage(factor) {
-    setImageZoom((current) => {
-      const next = current * factor
-      return Number.isFinite(next) ? Math.max(0.1, next) : current
-    })
+    const next = imageZoom * factor
+    const zoom = Number.isFinite(next) ? Math.min(5, Math.max(1, next)) : imageZoom
+    setImageZoom(zoom)
+    if (zoom === 1) setImageOffset({ x: 0, y: 0 })
+  }
+
+  function constrainImageOffset(x, y, zoom = imageZoom) {
+    const viewport = imageViewportRef.current
+    const image = viewport?.querySelector('.image-viewer-image')
+    if (!viewport || !image || zoom <= 1) return { x: 0, y: 0 }
+
+    const maxX = Math.max(0, (image.offsetWidth * zoom - viewport.clientWidth) / 2)
+    const maxY = Math.max(0, (image.offsetHeight * zoom - viewport.clientHeight) / 2)
+    return {
+      x: Math.max(-maxX, Math.min(maxX, x)),
+      y: Math.max(-maxY, Math.min(maxY, y)),
+    }
   }
 
   function resetImageZoom() {
@@ -160,31 +182,87 @@ export default function TestRunner() {
     zoomImage(Math.exp(-event.deltaY * 0.001))
   }
 
-  function startImageDrag(event) {
-    if (imageZoom <= 1) return
-    event.preventDefault()
-    imageDragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      offsetX: imageOffset.x,
-      offsetY: imageOffset.y,
-    }
+  function startImagePointer(event) {
     event.currentTarget.setPointerCapture(event.pointerId)
+    const pointers = imagePointersRef.current
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+
+    if (pointers.size >= 2) {
+      const [first, second] = [...pointers.values()]
+      imageDragRef.current = null
+      imagePinchRef.current = {
+        startDistance: Math.hypot(first.x - second.x, first.y - second.y),
+        startZoom: imageZoom,
+      }
+      return
+    }
+
+    if (
+      imageZoom > 1 &&
+      event.target instanceof Element &&
+      event.target.closest('.image-viewer-image')
+    ) {
+      imageDragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        offsetX: imageOffset.x,
+        offsetY: imageOffset.y,
+      }
+    }
   }
 
-  function moveImageDrag(event) {
+  function moveImagePointer(event) {
+    const pointers = imagePointersRef.current
+    if (!pointers.has(event.pointerId)) return
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+
+    if (pointers.size >= 2 && imagePinchRef.current) {
+      const [first, second] = [...pointers.values()]
+      const distance = Math.hypot(first.x - second.x, first.y - second.y)
+      const pinch = imagePinchRef.current
+      if (pinch.startDistance > 0) {
+        const zoom = Math.min(
+          5,
+          Math.max(1, pinch.startZoom * distance / pinch.startDistance)
+        )
+        setImageZoom(zoom)
+        setImageOffset((offset) =>
+          zoom === 1 ? { x: 0, y: 0 } : constrainImageOffset(offset.x, offset.y, zoom)
+        )
+      }
+      return
+    }
+
     const drag = imageDragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
-    setImageOffset({
-      x: drag.offsetX + event.clientX - drag.startX,
-      y: drag.offsetY + event.clientY - drag.startY,
-    })
+    const offset = constrainImageOffset(
+      drag.offsetX + event.clientX - drag.startX,
+      drag.offsetY + event.clientY - drag.startY
+    )
+    setImageOffset(offset)
   }
 
-  function endImageDrag(event) {
-    if (imageDragRef.current?.pointerId !== event.pointerId) return
-    imageDragRef.current = null
+  function endImagePointer(event) {
+    const pointers = imagePointersRef.current
+    pointers.delete(event.pointerId)
+    if (imageDragRef.current?.pointerId === event.pointerId) {
+      imageDragRef.current = null
+    }
+    if (pointers.size < 2) {
+      imagePinchRef.current = null
+      const remaining = pointers.entries().next().value
+      if (remaining && imageZoom > 1) {
+        const [pointerId, point] = remaining
+        imageDragRef.current = {
+          pointerId,
+          startX: point.x,
+          startY: point.y,
+          offsetX: imageOffset.x,
+          offsetY: imageOffset.y,
+        }
+      }
+    }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
@@ -201,8 +279,9 @@ export default function TestRunner() {
     setResult(null)
     setAnswers({})
     setPendingIndex(null)
-    setTopicTestStarted(false)
+    setStudyTestStarted(false)
     setEarlyExamFailure(false)
+    setShowExamResultNotice(false)
     setQuestionGridOpen(false)
     setHeaderTitleOpen(false)
     setIndex(0)
@@ -220,6 +299,14 @@ export default function TestRunner() {
             ? `${t('intermediateResult')} · ${review.title || t('intermediate')} · ${review.total}`
             : `${t('result', { count: params.resultNumber || '' })} · ${t('realExam')}`
         )
+        setResult({
+          ...review,
+          percent:
+            review.total > 0
+              ? Math.round((review.correct * 100) / review.total)
+              : 0,
+        })
+        setHeaderTitleOpen(true)
         setSeconds(null)
         setQuestions(review.questions)
         setAnswers(
@@ -258,6 +345,10 @@ export default function TestRunner() {
                   ? `${t('numericQuestions')} — ${resumed.total}`
                   : params.mode === 'new-questions'
                     ? t('newQuestionsTitle', { count: resumed.total })
+                    : params.mode === 'errors'
+                      ? t('profileErrors')
+                      : params.mode === 'saved'
+                        ? t('savedQuestions')
                     : params.mode === 'exam' || params.isRealExam
                       ? t('examQuestionTitle', { count: resumed.total })
                       : t('intermediateTitle', {
@@ -273,6 +364,7 @@ export default function TestRunner() {
           if (resumed.result) {
             finishedRef.current = true
             setResult(resumed.result)
+            setHeaderTitleOpen(true)
           }
           return
         }
@@ -294,6 +386,10 @@ export default function TestRunner() {
                 ? t('customQuestionTitle', { count: picked.questions.length })
                 : params.mode === 'new-questions'
                   ? t('newQuestionsTitle', { count: picked.questions.length })
+                    : params.mode === 'errors'
+                      ? t('profileErrors')
+                      : params.mode === 'saved'
+                        ? t('savedQuestions')
                   : params.mode === 'similar'
                     ? `${t('similarQuestions')} — ${picked.questions.length}`
                     : params.mode === 'numeric'
@@ -313,7 +409,10 @@ export default function TestRunner() {
         setQuestions(picked.questions)
         return
       }
-      if (params.mode === 'lesson' && !params.teacherMode) {
+      if (
+        ['lesson', 'errors', 'saved'].includes(params.mode) &&
+        !params.teacherMode
+      ) {
         setQuestions(picked.questions)
         return
       }
@@ -338,6 +437,19 @@ export default function TestRunner() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (!['errors', 'saved'].includes(params?.mode)) return undefined
+    const refreshProgressList = () => {
+      if (!studyTestStarted) void load()
+    }
+    window.addEventListener('pdd:progress-updated', refreshProgressList)
+    window.addEventListener('pdd:database-updated', refreshProgressList)
+    return () => {
+      window.removeEventListener('pdd:progress-updated', refreshProgressList)
+      window.removeEventListener('pdd:database-updated', refreshProgressList)
+    }
+  }, [load, params?.mode, studyTestStarted])
 
   const isRealExam = params?.mode === 'exam' || params?.isRealExam === true
   const is20QuestionRealExam = isRealExam && questions?.length === 20
@@ -364,14 +476,15 @@ export default function TestRunner() {
       )
       setResult(finished)
       setQuestionGridOpen(false)
-      setHeaderTitleOpen(false)
+      setHeaderTitleOpen(true)
+      if (is20QuestionRealExam) setShowExamResultNotice(true)
     } catch (reason) {
       finishedRef.current = false
       setError(reason.message || String(reason))
     } finally {
       setFinishing(false)
     }
-  }, [attemptId])
+  }, [attemptId, is20QuestionRealExam])
 
   const timer = useTimer(seconds, finish, !result)
   const currentQuestion = questions?.[index]
@@ -420,6 +533,8 @@ export default function TestRunner() {
         ? t('emptyQuestions')
         : params.mode === 'errors'
           ? t('noErrors')
+          : params.mode === 'saved'
+            ? t('savedQuestionsEmpty')
           : params.mode === 'similar'
             ? t('noSimilarQuestions')
             : params.mode === 'numeric'
@@ -431,8 +546,8 @@ export default function TestRunner() {
   const q = currentQuestion
   const current = answers[q.id]
   const answeredCount = Object.keys(answers).length
-  const lessonMode = params.mode === 'lesson' && !params.teacherMode
-  const lessonStudyMode = lessonMode && !topicTestStarted
+  const studyMode = ['lesson', 'errors', 'saved'].includes(params.mode) && !params.teacherMode
+  const studyPhase = studyMode && !studyTestStarted
   const reviewMode = params.mode === 'review'
   const examMode =
     params.mode === 'exam' ||
@@ -442,17 +557,18 @@ export default function TestRunner() {
   const confirmOnImage = params.mode === 'exam' || params.isRealExam === true
   const canShowHelp = Boolean(q.explanation || q.explanationImageUrl)
   const canOpenHelp =
-    canShowHelp && (lessonStudyMode || Boolean(params.teacherMode))
+    canShowHelp &&
+    (studyPhase || Boolean(params.teacherMode) || Boolean(result) || reviewMode)
   const questionGridRows = Math.min(3, Math.ceil(questions.length / 30))
   const questionGridHeight =
     questionGridRows * 44 + Math.max(0, questionGridRows - 1) * 6 + 12
 
-  async function startTopicTest() {
+  async function startStudyTest() {
     setError('')
     try {
       const id = await window.api.tests.start({
-        mode: 'lesson',
-        lessonId: params.lessonId,
+        mode: params.mode,
+        lessonId: params.mode === 'lesson' ? params.lessonId : null,
         total: questions.length,
         title,
         seconds: null,
@@ -464,7 +580,7 @@ export default function TestRunner() {
       setResult(null)
       setEarlyExamFailure(false)
       setAttemptId(id)
-      setTopicTestStarted(true)
+      setStudyTestStarted(true)
     } catch (reason) {
       setError(reason.message || String(reason))
     }
@@ -523,7 +639,7 @@ export default function TestRunner() {
 
   async function selectOption(optionIndex) {
     if (
-      lessonStudyMode ||
+      studyPhase ||
       current ||
       answering ||
       finishing ||
@@ -585,13 +701,43 @@ export default function TestRunner() {
   }
 
   function retryAttempt() {
-    if (lessonMode) {
-      void startTopicTest()
+    if (studyMode) {
+      void startStudyTest()
       return
     }
     const newParams = { ...params }
     delete newParams.resumeAttemptId
     navigate('/run', { replace: true, state: newParams })
+  }
+
+  function startQuestionSwipe(event) {
+    const touch = event.touches[0]
+    if (event.touches.length !== 1 || !touch) {
+      questionSwipeTouchRef.current = null
+      return
+    }
+    questionSwipeTouchRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      target: event.target,
+    }
+  }
+
+  function finishQuestionSwipe(event) {
+    const start = questionSwipeTouchRef.current
+    questionSwipeTouchRef.current = null
+    const touch = event.changedTouches[0]
+    if (!start || !touch || helpOpen || viewerImage || !questions) return
+    if (
+      start.target instanceof Element &&
+      start.target.closest('.q-grid, [role="dialog"]')
+    )
+      return
+
+    const distanceX = touch.clientX - start.startX
+    const distanceY = touch.clientY - start.startY
+    if (Math.abs(distanceX) < 50 || Math.abs(distanceX) < Math.abs(distanceY) * 1.25) return
+    goTo(index + (distanceX < 0 ? 1 : -1))
   }
 
   function startQuestionGridSwipe(event) {
@@ -635,7 +781,14 @@ export default function TestRunner() {
   }
 
   return (
-    <div className="test-page">
+    <div
+      className="test-page"
+      onTouchStart={startQuestionSwipe}
+      onTouchEnd={finishQuestionSwipe}
+      onTouchCancel={() => {
+        questionSwipeTouchRef.current = null
+      }}
+    >
       <div className="test-shell">
         <div className="test-main">
           <div
@@ -662,7 +815,7 @@ export default function TestRunner() {
             )}
             <div className="test-topbar-actions">
               <button
-                className="btn header-title-toggle"
+                className="header-title-toggle"
                 type="button"
                 onClick={() => setHeaderTitleOpen((open) => !open)}
                 aria-label={t(
@@ -699,7 +852,7 @@ export default function TestRunner() {
                   ⏱ {timer.formatted}
                 </span>
               )}
-              {(!lessonMode || topicTestStarted) && !reviewMode && result && (
+              {(!studyMode || studyTestStarted) && !reviewMode && result && (
                 <button
                   className="btn test-restart-btn"
                   type="button"
@@ -708,16 +861,16 @@ export default function TestRunner() {
                   {t('restartTest')}
                 </button>
               )}
-              {lessonMode && !topicTestStarted && (
+              {studyMode && !studyTestStarted && (
                 <button
                   className="btn btn-primary topic-test-btn"
                   type="button"
-                  onClick={() => void startTopicTest()}
+                  onClick={() => void startStudyTest()}
                 >
                   {t('topicTest')}
                 </button>
               )}
-              {lessonMode && topicTestStarted && !result && (
+              {studyMode && studyTestStarted && !result && (
                 <button
                   className="btn btn-danger"
                   type="button"
@@ -727,7 +880,7 @@ export default function TestRunner() {
                   {t('finish')}
                 </button>
               )}
-              {!reviewMode && !lessonMode && !result && (
+              {!reviewMode && !studyMode && !result && (
                 <button
                   className="btn btn-danger"
                   onClick={handleFinishClick}
@@ -740,21 +893,20 @@ export default function TestRunner() {
           </div>
 
           <div className="glass question-card">
-            <div className="question-save-bar">
-              <button
-                type="button"
-                className={`btn question-save-btn${questionSaved ? ' is-saved' : ''}`}
-                onClick={() => void toggleQuestionSaved()}
-                disabled={savingQuestion}
-                aria-pressed={questionSaved}
-              >
-                <IconBookmark />
-                {t(questionSaved ? 'removeSavedQuestion' : 'saveQuestion')}
-              </button>
-            </div>
             <div className="question-layout">
               <div className="question-text">{q.text}</div>
               <div className="question-visual">
+                <button
+                  type="button"
+                  className={`question-image-save-btn${questionSaved ? ' is-saved' : ''}`}
+                  onClick={() => void toggleQuestionSaved()}
+                  disabled={savingQuestion}
+                  aria-label={t(questionSaved ? 'removeSavedQuestion' : 'saveQuestion')}
+                  title={t(questionSaved ? 'removeSavedQuestion' : 'saveQuestion')}
+                  aria-pressed={questionSaved}
+                >
+                  <IconBookmark />
+                </button>
                 {q.imageUrl && failedImageId !== q.id && cachedQuestionImage.url ? (
                   <img
                     className="question-image"
@@ -822,7 +974,7 @@ export default function TestRunner() {
                     const selectedIndex = reviewMode
                       ? current?.chosenIndex
                       : current?.chosenIndex
-                    if (lessonStudyMode) {
+                    if (studyPhase) {
                       if (optionIndex === q.correctIndex)
                         className += ' lesson-answer-correct'
                     } else if (reviewMode) {
@@ -851,7 +1003,7 @@ export default function TestRunner() {
                         className={className}
                         onClick={() => selectOption(optionIndex)}
                         disabled={
-                          lessonStudyMode ||
+                          studyPhase ||
                           !!current ||
                           answering ||
                           finishing ||
@@ -859,10 +1011,7 @@ export default function TestRunner() {
                           reviewMode
                         }
                       >
-                        <strong className="option-label">
-                          <span className="key-f">F</span>
-                          {optionIndex + 1}
-                        </strong>
+                        <strong className="option-label">F{optionIndex + 1}</strong>
                         <span>{option}</span>
                       </button>
                     )
@@ -874,15 +1023,6 @@ export default function TestRunner() {
 
           {error && <div className="error-text">{error}</div>}
           <div className="glass test-navigation">
-            <button
-              className="btn test-nav-arrow"
-              onClick={() => goTo(index - 1)}
-              disabled={index === 0}
-              aria-label={t('previous')}
-              title={t('previous')}
-            >
-              <span className="test-nav-chevron" aria-hidden="true">‹</span>
-            </button>
             <div
               className={`question-grid-panel${questionGridOpen ? ' is-open' : ''}`}
               onTouchStart={startQuestionGridSwipe}
@@ -925,15 +1065,6 @@ export default function TestRunner() {
                 </div>
               </div>
             </div>
-            <button
-              className="btn test-nav-arrow"
-              onClick={() => goTo(index + 1)}
-              disabled={index === questions.length - 1}
-              aria-label={t('next')}
-              title={t('next')}
-            >
-              <span className="test-nav-chevron" aria-hidden="true">›</span>
-            </button>
           </div>
         </div>
       </div>
@@ -955,39 +1086,17 @@ export default function TestRunner() {
             role="dialog"
             aria-modal="true"
             aria-label={t('zoomImage')}
-            onClick={(event) => event.stopPropagation()}
+            onClick={() => setViewerImage(null)}
           >
-            <div className="image-viewer-toolbar">
-              <button
-                type="button"
-                className="btn"
-                onClick={() => zoomImage(1.25)}
-                aria-label={t('zoomIn')}
-              >
-                ＋
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => zoomImage(1 / 1.25)}
-                aria-label={t('zoomOut')}
-              >
-                −
-              </button>
-              <span>{Math.round(imageZoom * 100)}%</span>
-              <button type="button" className="btn" onClick={resetImageZoom}>
-                {t('resetZoom')}
-              </button>
-              <button
-                type="button"
-                className="btn image-viewer-close"
-                onClick={() => setViewerImage(null)}
-                aria-label={t('close')}
-              >
-                ×
-              </button>
-            </div>
-            <div className="image-viewer-viewport" onWheel={handleImageWheel}>
+            <div
+              className="image-viewer-viewport"
+              ref={imageViewportRef}
+              onWheel={handleImageWheel}
+              onPointerDown={startImagePointer}
+              onPointerMove={moveImagePointer}
+              onPointerUp={endImagePointer}
+              onPointerCancel={endImagePointer}
+            >
               <img
                 className={`image-viewer-image${imageZoom > 1 ? ' is-zoomed' : ''}`}
                 src={viewerImage}
@@ -996,13 +1105,46 @@ export default function TestRunner() {
                 style={{
                   transform: `translate(${imageOffset.x}px, ${imageOffset.y}px) scale(${imageZoom})`,
                 }}
-                onPointerDown={startImageDrag}
-                onPointerMove={moveImageDrag}
-                onPointerUp={endImageDrag}
-                onPointerCancel={endImageDrag}
+                onClick={(event) => event.stopPropagation()}
               />
             </div>
-            <p className="image-viewer-hint">{t('zoomHint')}</p>
+          </section>
+        </div>
+      )}
+      {showExamResultNotice && result && (
+        <div
+          className={`exam-result-overlay${result.percent < 90 ? ' failed' : ' passed'}`}
+        >
+          <section
+            className="exam-result-notice"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exam-result-title"
+          >
+            <h1 id="exam-result-title">
+              <span className="exam-result-emoji" aria-hidden="true">
+                {result.percent < 90 ? '😔' : '😊'}
+              </span>
+              {result.percent < 90
+                ? t('examFailureTitle')
+                : t('examSuccessTitle')}
+            </h1>
+            <h2>
+              {result.percent < 90 ? t('examNotPassed') : t('examPassed')}
+            </h2>
+            <p>
+              {t('examTotalScore', {
+                percent: ((result.correct / result.total) * 100).toFixed(2),
+              })}
+            </p>
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={() => setShowExamResultNotice(false)}
+              autoFocus
+            >
+              {t('back')}
+            </button>
           </section>
         </div>
       )}

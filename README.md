@@ -1,7 +1,8 @@
 # ilova_sayt — telefon va brauzer uchun sayt
 
 Kompyuter ilovasi (`pdd-desktop-app`) bilan **bir xil interfeys**, lekin brauzerda ishlaydi.
-Ma'lumotlar Supabase'dan yuklanadi va qurilmaning o'zida (IndexedDB) saqlanadi, shuning uchun internetsiz ham ishlaydi.
+Savollar Supabase'dan yuklanib qurilmada (IndexedDB) saqlanadi; xatolar va saqlangan
+savollar esa aktivatsiya kodiga bog'lanib Supabase'da sinxronlanadi.
 
 ## Ishga tushirish
 
@@ -9,14 +10,21 @@ Ma'lumotlar Supabase'dan yuklanadi va qurilmaning o'zida (IndexedDB) saqlanadi, 
 npm install
 npm run build        # dist/ papkasini yig'adi (esbuild, .env dan Supabase manzili va kalitini oladi)
 npm start            # http://localhost:4173 da tekshirish
+npm run dev          # ishlab chiqish: fayllar o'zgarganda avtomatik qayta yig'adi
 ```
+
+`npm run dev` ishlayotganda fayllarni saqlang; sayt avtomatik qayta yig'iladi. Brauzerda yangilangan holatini ko'rish uchun sahifani qayta yuklang.
 
 `.env` (namuna: `.env.example`) faqat **publishable/anon** kalitni oladi. `service_role` kalitni bu yerga qo'ymang —
 `build.mjs` bunday kalitni ko'rsa, yig'ishni to'xtatadi.
 
 Sayt aktivatsiyasi uchun Supabase'da
 [`Frontend/supabase_web_activation_migration.sql`](../Frontend/supabase_web_activation_migration.sql)
-migratsiyasini bir marta ishga tushiring.
+migratsiyasini bir marta ishga tushiring. Qayta ishlatiladigan kodlar uchun
+[`Frontend/supabase_web_activation_reusable_codes_migration.sql`](../Frontend/supabase_web_activation_reusable_codes_migration.sql),
+foydalanuvchi savollarini saqlash uchun esa
+[`Frontend/supabase_web_activation_user_progress_migration.sql`](../Frontend/supabase_web_activation_user_progress_migration.sql)
+migratsiyalarini shu tartibda ishga tushiring.
 
 ## Internetga joylash
 
@@ -26,10 +34,11 @@ Vercel: loyihani ulang, Environment Variables'ga `VITE_SUPABASE_URL` va `VITE_SU
 
 ## Qanday ishlaydi
 
-1. **Faollashtirish.** Har bir telefon uchun admin paneldagi **Sayt** bo'limidan alohida kod beriladi
-   (kod `WEB` bilan boshlanadi, desktop kodlaridan alohida saqlanadi va bitta qurilmaga bog'lanadi).
+1. **Faollashtirish.** Admin paneldagi **Sayt** bo'limidan 6 xonali raqamli kod olinadi
+   (desktop kodlaridan alohida saqlanadi va bir nechta qurilmada ishlatilishi mumkin).
    Kod yaratilganidan 15 kun o'tgach muddati tugaydi; shu vaqtdan keyin saytga kirish ham bloklanadi.
-   Qurilma identifikatori brauzerda yaratiladi (`web-…`). Brauzer ma'lumotlari tozalansa, yangi kod kerak bo'ladi.
+   Qurilma identifikatori brauzerda yaratiladi (`web-…`). Brauzer ma'lumotlari tozalansa, shu kodni
+   muddati tugamaguncha qayta kiritib, boshqa qurilma kabi davom etish mumkin.
 2. **Avtomatik sinxronlash.** Faollashtirilgan ilova ochilganda katalog va savol matnlari fonda Supabase RPC
    (`sync_base_catalog`, `sync_base_questions`, `sync_lesson_question_order`) orqali tekshiriladi. Faqat yangi yoki
    o'zgargan ma'lumotlar olinib, IndexedDB'da saqlanadi; foydalanuvchiga alohida yangilash bo'limi ko'rsatilmaydi.
@@ -42,6 +51,9 @@ Vercel: loyihani ulang, Environment Variables'ga `VITE_SUPABASE_URL` va `VITE_SU
    Kod muddati (`activation_expires_at`) bundan qat'i nazar har doim tekshiriladi.
 5. **Imtihon tarixi.** Kompyuter ilovasidagidek, tugagan imtihonlar har ishga tushganda tozalanadi («bu sessiyada»).
    Doimiy saqlash uchun `src/renderer/src/web/engine.js` da `KEEP_EXAM_HISTORY = true` qiling.
+6. **Xatolar va saqlangan savollar.** Savollar ID raqami bo'yicha aktivatsiya kodiga bog'lanib,
+   Supabase'da saqlanadi. Shu kod bilan boshqa qurilmada kirilganda ro'yxatlar olinadi;
+   internet bo'lmaganda o'zgarishlar IndexedDB'da navbatga qo'yilib, ulanish tiklanganda yuboriladi.
 
 ## Tuzilma
 
