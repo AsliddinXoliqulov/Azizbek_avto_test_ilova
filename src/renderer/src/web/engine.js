@@ -4,12 +4,26 @@ import * as idb from './db'
 import { publicImageUrl, supabase } from './supabase'
 
 const CUSTOM_SECONDS_PER_QUESTION = 75
+const FIFTY_QUESTION_EXAM_SECONDS = 45 * 60
 const LANGUAGES = new Set(['uz-Latn', 'uz-Cyrl', 'ru'])
 const DEFAULT_SETTINGS = {
   seconds_per_question: CUSTOM_SECONDS_PER_QUESTION,
   exam_question_count: 20,
   exam_seconds: 1500,
   no_question_image_url: '',
+}
+
+function examSecondsForCount(questionCount, settings) {
+  if (questionCount === 50) return FIFTY_QUESTION_EXAM_SECONDS
+  return questionCount * Math.ceil(
+    (settings.exam_seconds || 1500) / (settings.exam_question_count || 20)
+  )
+}
+
+function sectionExamSecondsForCount(questionCount) {
+  return questionCount === 50
+    ? FIFTY_QUESTION_EXAM_SECONDS
+    : questionCount * CUSTOM_SECONDS_PER_QUESTION
 }
 
 export const state = {
@@ -558,7 +572,7 @@ export function pickQuestions({ mode, lessonId, sectionId, count, variantNumber,
       return {
         title: `Haqiqiy imtihon — ${questionCount}`,
         questions: formatQuestions(shuffle(usable).slice(0, questionCount)),
-        seconds: questionCount * Math.ceil((settings.exam_seconds || 1500) / (settings.exam_question_count || 20)),
+        seconds: examSecondsForCount(questionCount, settings),
       }
     }
     case 'section-exam': {
@@ -574,7 +588,7 @@ export function pickQuestions({ mode, lessonId, sectionId, count, variantNumber,
       return {
         title: section && !section.is_deleted ? localize(section.name, language) : 'Oraliq imtihon',
         questions,
-        seconds: questionCount * 75,
+        seconds: sectionExamSecondsForCount(questionCount),
       }
     }
     case 'custom': {
@@ -690,13 +704,19 @@ export async function startAttempt({ mode, lessonId, sectionId, total, title, se
 const saveAttempt = (attempt) => idb.put('attempts', attempt)
 
 function attemptDeadline(attempt) {
+  if (['exam', 'section-exam'].includes(attempt.mode) && attempt.total === 50) {
+    const startedAt = Date.parse(attempt.started_at)
+    if (Number.isFinite(startedAt)) {
+      return startedAt + FIFTY_QUESTION_EXAM_SECONDS * 1000
+    }
+  }
   if (attempt.expires_at) return Date.parse(attempt.expires_at)
   if (!['exam', 'section-exam'].includes(attempt.mode)) return null
   const settings = getSettings()
   const duration =
     attempt.mode === 'section-exam'
-      ? attempt.total * 75
-      : attempt.total * Math.ceil((settings.exam_seconds || 1500) / (settings.exam_question_count || 20))
+      ? sectionExamSecondsForCount(attempt.total)
+      : examSecondsForCount(attempt.total, settings)
   const startedAt = Date.parse(attempt.started_at)
   return Number.isFinite(startedAt) ? startedAt + duration * 1000 : null
 }

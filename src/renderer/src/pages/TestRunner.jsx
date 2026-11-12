@@ -25,7 +25,6 @@ export default function TestRunner() {
   const [answers, setAnswers] = useState({})
   const [savedQuestionState, setSavedQuestionState] = useState({ id: null, saved: false })
   const [savingQuestion, setSavingQuestion] = useState(false)
-  const [pendingIndex, setPendingIndex] = useState(null)
   const [studyTestStarted, setStudyTestStarted] = useState(false)
   const [earlyExamFailure, setEarlyExamFailure] = useState(false)
   const [showExamResultNotice, setShowExamResultNotice] = useState(false)
@@ -80,7 +79,6 @@ export default function TestRunner() {
     }
   }, [])
   useEffect(() => {
-    setPendingIndex(null)
     setFailedImageId(null)
     setStorageImageId(null)
     setViewerImage(null)
@@ -278,7 +276,6 @@ export default function TestRunner() {
     finishedRef.current = false
     setResult(null)
     setAnswers({})
-    setPendingIndex(null)
     setStudyTestStarted(false)
     setEarlyExamFailure(false)
     setShowExamResultNotice(false)
@@ -554,7 +551,6 @@ export default function TestRunner() {
     params.mode === 'section-exam' ||
     params.mode === 'variant'
   const threeMistakeExam = is20QuestionRealExam
-  const confirmOnImage = params.mode === 'exam' || params.isRealExam === true
   const canShowHelp = Boolean(q.explanation || q.explanationImageUrl)
   const canOpenHelp =
     canShowHelp &&
@@ -613,7 +609,6 @@ export default function TestRunner() {
         ...existing,
         [q.id]: { chosenIndex: optionIndex, ...answer },
       }))
-      setPendingIndex(null)
       const wrongCount =
         Object.values(answers).filter(
           (existingAnswer) =>
@@ -647,15 +642,7 @@ export default function TestRunner() {
       reviewMode
     )
       return
-    if (confirmOnImage) {
-      setPendingIndex(optionIndex)
-      return
-    }
     void submitAnswer(optionIndex)
-  }
-
-  function clearPendingAnswer() {
-    setPendingIndex(null)
   }
 
   function goTo(nextIndex) {
@@ -767,15 +754,12 @@ export default function TestRunner() {
 
   function questionStatus(question, questionIndex) {
     const answer = answers[question.id]
-    const pending = questionIndex === index && pendingIndex != null
     let className = 'q-dot'
     if (questionIndex === index) className += ' current'
     if (answer?.chosenIndex != null) {
       className += answer.isCorrect ? ' answered-correct' : ' answered-wrong'
     } else if (earlyExamFailure) {
       className += ' answered-wrong'
-    } else if (pending) {
-      className += ' answered'
     }
     return className
   }
@@ -943,29 +927,6 @@ export default function TestRunner() {
                     alt={t('noImage')}
                   />
                 ) : null}
-                {confirmOnImage && pendingIndex != null && !current && (
-                  <div className="exam-answer-overlay">
-                    <button
-                      type="button"
-                      className="exam-answer-confirm option-btn"
-                      disabled={answering}
-                      onClick={() => void submitAnswer(pendingIndex)}
-                      title={t('confirmSelectedAnswer')}
-                    >
-                      F{pendingIndex + 1}: {q.options[pendingIndex]}
-                    </button>
-                    <button
-                      type="button"
-                      className="exam-answer-cancel"
-                      onClick={clearPendingAnswer}
-                      disabled={answering}
-                      aria-label={t('cancelSelectedAnswer')}
-                      title={t('cancelSelectedAnswer')}
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
               </div>
               <div className="question-copy">
                 <div className="options">
@@ -994,8 +955,6 @@ export default function TestRunner() {
                         className += ' correct'
                       else if (optionIndex === current.chosenIndex)
                         className += ' incorrect'
-                    } else if (pendingIndex === optionIndex) {
-                      className += ' selected'
                     }
                     return (
                       <button

@@ -7,10 +7,10 @@ export default function Home() {
   const t = useUi()
 
   const tiles = [
-    { to: '/topics', tone: 'lessons', Icon: IconBook, title: t('lessons'), hint: t('tileLessonsHint') },
-    { to: '/exam', tone: 'exam', Icon: IconExam, title: t('realExam'), hint: t('tileExamHint') },
-    { to: '/question-practice', tone: 'practice', Icon: IconList, title: t('questions'), hint: t('tileQuestionsHint') },
-    { to: '/variants', tone: 'variants', Icon: IconGrid, title: t('variants'), hint: t('tileVariantsHint') },
+    { to: '/topics', tone: 'lessons', Icon: IconBook, title: t('lessons') },
+    { to: '/exam', tone: 'exam', Icon: IconExam, title: t('realExam') },
+    { to: '/question-practice', tone: 'practice', Icon: IconList, title: t('questions') },
+    { to: '/variants', tone: 'variants', Icon: IconGrid, title: t('variants') },
   ]
 
   return (
@@ -28,14 +28,13 @@ export default function Home() {
       </section>
 
       <nav className="hm-tiles" aria-label={t('mainMenu')}>
-        {tiles.map(({ to, tone, Icon, title, hint }) => (
+        {tiles.map(({ to, tone, Icon, title }) => (
           <Link key={to} to={to} className={`hm-tile hm-tile-${tone}`}>
             <span className="hm-tile-icon">
               <Icon />
             </span>
             <span className="hm-tile-copy">
               <strong>{title}</strong>
-              <small>{hint}</small>
             </span>
             <IconArrowRight className="hm-tile-go" />
           </Link>

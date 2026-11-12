@@ -3029,55 +3029,6 @@ html.web-app #root .help-flip-text-face .help-modal-frame {
   color: #fff;
   background: #b91c1c;
 }
-.exam-answer-overlay {
-  position: absolute;
-  inset: 12px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-.exam-answer-confirm {
-  width: min(90%, 420px);
-  min-height: 64px;
-  justify-content: center;
-  border-width: 2px;
-  padding: 16px 54px 16px 20px;
-  background: var(--bg);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
-  pointer-events: auto;
-}
-.exam-answer-confirm.correct {
-  border-color: var(--good);
-}
-.exam-answer-confirm.incorrect {
-  border-color: var(--bad);
-}
-.exam-answer-cancel {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1;
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--stroke);
-  border-radius: 50%;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 25px;
-  line-height: 1;
-  cursor: pointer;
-  pointer-events: auto;
-}
-.exam-answer-cancel:hover:not(:disabled) {
-  color: var(--bad);
-  border-color: var(--bad);
-}
-.exam-answer-cancel:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
 .confirm-modal-overlay {
   z-index: 90;
   padding: 20px;

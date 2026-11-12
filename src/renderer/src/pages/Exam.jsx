@@ -153,7 +153,7 @@ export default function Exam() {
 
       {countPrompt && (
         <div
-          className="modal-overlay confirm-modal-overlay"
+          className="modal-overlay confirm-modal-overlay exam-choice-overlay"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setCountPrompt(null)
           }}
@@ -199,7 +199,10 @@ export default function Exam() {
                     <strong>{option === 20 ? t('exam20') : t('exam50')}</strong>
                     <span>
                       {t('minutes', {
-                        count: Math.ceil((option * secondsPerQuestion) / 60),
+                        count:
+                          option === 50
+                            ? 45
+                            : Math.ceil((option * secondsPerQuestion) / 60),
                       })}
                     </span>
                   </button>

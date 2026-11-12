@@ -36,8 +36,9 @@ function sinceForCatalog(catalog, lastSynced) {
 }
 
 async function fetchCatalog(since, signal) {
+  const pDeviceId = await deviceId()
   const { data, error } = await supabase
-    .rpc('sync_base_catalog', { p_device_id: deviceId(), p_since: since })
+    .rpc('sync_base_catalog', { p_device_id: pDeviceId, p_since: since })
     .abortSignal(signal)
   if (error) throw error
   if (!data || !Array.isArray(data.sections) || !Array.isArray(data.lessons)) {
@@ -47,6 +48,7 @@ async function fetchCatalog(since, signal) {
 }
 
 async function fetchChangedQuestions(since, onProgress, signal) {
+  const pDeviceId = await deviceId()
   let cursor = { since, afterId: 0 }
   const rows = []
   let fetched = 0
@@ -57,7 +59,7 @@ async function fetchChangedQuestions(since, onProgress, signal) {
     onProgress({ stage: 'questions', fetched, estimatedBytes })
     const { data, error } = await supabase
       .rpc('sync_base_questions', {
-        p_device_id: deviceId(),
+        p_device_id: pDeviceId,
         p_since: cursor.since,
         p_after_id: cursor.afterId,
         p_limit: PAGE,
@@ -81,8 +83,9 @@ async function fetchChangedQuestions(since, onProgress, signal) {
 }
 
 async function fetchLessonQuestionOrder(signal) {
+  const pDeviceId = await deviceId()
   const { data, error } = await supabase
-    .rpc('sync_lesson_question_order', { p_device_id: deviceId() })
+    .rpc('sync_lesson_question_order', { p_device_id: pDeviceId })
     .abortSignal(signal)
   if (error) throw error
   if (!Array.isArray(data)) {

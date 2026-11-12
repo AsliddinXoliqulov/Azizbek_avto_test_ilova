@@ -1,4 +1,5 @@
 // Qurilmani faollashtirish (kompyuter ilovasidagi activation.js ning brauzer varianti).
+import FingerprintJS from '@fingerprintjs/fingerprintjs'
 import { supabase } from './supabase'
 import { metaGet, metaSet } from './engine'
 
@@ -9,32 +10,38 @@ export const OFFLINE_GRACE_MS = 7 * 24 * 60 * 60 * 1000
 const MESSAGES = {
   INVALID_CODE: "Kod noto'g'ri. Qaytadan tekshirib kiriting.",
   EXPIRED: 'Kodning foydalanish muddati tugagan. Admindan yangi kod so‘rang.',
-  ALREADY_USED: 'Bu kod boshqa qurilmada allaqachon ishlatilgan.',
+  ALREADY_USED: 'Kod boshqa qurilmaga ulangan.',
   REVOKED: 'Bu kod bekor qilingan. Admin kodni qayta faollashtirgan bo‘lsa, qayta urining.',
   TOO_MANY_ATTEMPTS: "Juda ko'p noto'g'ri urinish. 10 daqiqadan so'ng qayta urinib ko'ring.",
   INVALID_DEVICE: 'Qurilma aniqlanmadi. Sahifani qayta yuklang.',
+  DEVICE_FINGERPRINT: 'Qurilma identifikatorini aniqlab bo‘lmadi. Sahifani qayta yuklang.',
   NETWORK: 'Internetga ulanib bo‘lmadi. Internetni tekshirib qayta urining.',
 }
 
+let deviceIdPromise
+
 export function deviceId() {
-  let id = null
-  try {
-    id = localStorage.getItem('pdd_device_id')
-  } catch {
-    /* localStorage mavjud emas */
+  if (!deviceIdPromise) {
+    deviceIdPromise = (async () => {
+      try {
+        const agent = await FingerprintJS.load()
+        const { visitorId } = await agent.get()
+        if (!visitorId) throw new Error('FingerprintJS identifikator qaytarmadi.')
+        const id = `fp-${visitorId}`
+        try {
+          localStorage.setItem('pdd_device_id', id)
+        } catch {
+          // IndexedDB metama'lumoti doimiy saqlash uchun zaxira vazifasini bajaradi.
+        }
+        if (metaGet('device_id') !== id) await metaSet('device_id', id)
+        return id
+      } catch {
+        deviceIdPromise = undefined
+        throw new Error('DEVICE_FINGERPRINT')
+      }
+    })()
   }
-  id = id || metaGet('device_id')
-  if (!id) {
-    const random = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)
-    id = `web-${random}`
-  }
-  try {
-    localStorage.setItem('pdd_device_id', id)
-  } catch {
-    /* ignore */
-  }
-  if (metaGet('device_id') !== id) metaSet('device_id', id)
-  return id
+  return deviceIdPromise
 }
 
 const numberMeta = (key) => {
@@ -68,7 +75,7 @@ export function status() {
         metaGet('activated') !== '1' &&
         Boolean(metaGet('activated_at'))),
     lastOnlineCheckAt: numberMeta('last_online_check_at'),
-    deviceId: deviceId(),
+    deviceId: metaGet('device_id'),
   }
 }
 
@@ -93,10 +100,14 @@ export async function getSavedActivationCode() {
   try {
     const { data, error } = await supabase.rpc('activate_web_device', {
       p_code: code,
-      p_device_id: deviceId(),
+      p_device_id: await deviceId(),
     })
     if (error) {
       console.error('[activation] Saqlangan kod tekshirilmadi:', error)
+      if (error.code === '42501' && error.message?.includes('Code is already bound to another device')) {
+        await metaSet('activation_code', '')
+        return { code: '', error: MESSAGES.ALREADY_USED }
+      }
       return { code: '', error: MESSAGES.NETWORK }
     }
     if (data?.ok === true) return { code, error: null }
@@ -107,14 +118,22 @@ export async function getSavedActivationCode() {
     return { code: '', error: MESSAGES[data?.error] || null }
   } catch (error) {
     console.error('[activation] Saqlangan kod tekshirilmadi:', error)
-    return { code: '', error: MESSAGES.NETWORK }
+    return {
+      code: '',
+      error: error?.message === 'DEVICE_FINGERPRINT' ? MESSAGES.DEVICE_FINGERPRINT : MESSAGES.NETWORK,
+    }
   }
 }
 
 export async function activate(code) {
   try {
-    const { data, error } = await supabase.rpc('activate_web_device', { p_code: code, p_device_id: deviceId() })
-    if (error) return { ok: false, error: 'NETWORK', message: MESSAGES.NETWORK }
+    const { data, error } = await supabase.rpc('activate_web_device', { p_code: code, p_device_id: await deviceId() })
+    if (error) {
+      if (error.code === '42501' && error.message?.includes('Code is already bound to another device')) {
+        return { ok: false, error: 'ALREADY_USED', message: MESSAGES.ALREADY_USED }
+      }
+      return { ok: false, error: 'NETWORK', message: MESSAGES.NETWORK }
+    }
     if (!data?.ok) return { ok: false, error: data?.error, message: MESSAGES[data?.error] || 'Noma’lum xatolik.' }
     const now = Date.now()
     await metaSet('activated', '0')
@@ -129,14 +148,19 @@ export async function activate(code) {
     return { ok: true, ...status() }
   } catch (error) {
     console.error('[activation] Kodni faollashtirishda xatolik:', error)
-    return { ok: false, error: 'NETWORK', message: MESSAGES.NETWORK }
+    const fingerprintError = error?.message === 'DEVICE_FINGERPRINT'
+    return {
+      ok: false,
+      error: fingerprintError ? 'DEVICE_FINGERPRINT' : 'NETWORK',
+      message: fingerprintError ? MESSAGES.DEVICE_FINGERPRINT : MESSAGES.NETWORK,
+    }
   }
 }
 
 export async function retryDeviceActivation(enteredCode = '') {
   try {
     const { data, error } = await supabase.rpc('check_web_device_activation', {
-      p_device_id: deviceId(),
+      p_device_id: await deviceId(),
     })
     if (error) {
       console.error('[activation] Qurilma aktivatsiyasi tekshirilmadi:', error)
@@ -165,13 +189,16 @@ export async function retryDeviceActivation(enteredCode = '') {
     return { ok: true, ...status() }
   } catch (error) {
     console.error('[activation] Qurilma aktivatsiyasini qayta tiklashda xatolik:', error)
-    return { ok: false, message: MESSAGES.NETWORK }
+    return {
+      ok: false,
+      message: error?.message === 'DEVICE_FINGERPRINT' ? MESSAGES.DEVICE_FINGERPRINT : MESSAGES.NETWORK,
+    }
   }
 }
 
 export async function revalidate() {
   try {
-    const { data, error } = await supabase.rpc('check_web_device_activation', { p_device_id: deviceId() })
+    const { data, error } = await supabase.rpc('check_web_device_activation', { p_device_id: await deviceId() })
     if (error) return status()
     if (data?.active !== true) {
       await metaSet('activated', '0')
