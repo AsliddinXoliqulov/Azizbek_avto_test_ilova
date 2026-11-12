@@ -5,6 +5,7 @@ import { publicImageUrl, supabase } from './supabase'
 
 const CUSTOM_SECONDS_PER_QUESTION = 75
 const FIFTY_QUESTION_EXAM_SECONDS = 45 * 60
+const QUESTION_BANK_VARIANT_SEED_KEY = 'question_bank_variant_shuffle_seed_v1'
 const LANGUAGES = new Set(['uz-Latn', 'uz-Cyrl', 'ru'])
 const DEFAULT_SETTINGS = {
   seconds_per_question: CUSTOM_SECONDS_PER_QUESTION,
@@ -39,6 +40,7 @@ export const state = {
 }
 
 let cache = { usable: null, positions: null, categories: null }
+let questionBankVariantShuffleSeed = null
 const resetCache = () => {
   cache = { usable: null, positions: null, categories: null }
 }
@@ -68,6 +70,7 @@ export async function init() {
     finished.forEach((id) => state.attempts.delete(id))
     await idb.removeMany('attempts', finished)
   }
+  await initializeQuestionBankVariantSeed()
   state.ready = true
   resetCache()
 }
@@ -76,6 +79,22 @@ export const metaGet = (key) => (key in state.kv ? state.kv[key] : null)
 export function metaSet(key, value) {
   state.kv[key] = value
   return idb.put('kv', { key, value })
+}
+
+async function initializeQuestionBankVariantSeed() {
+  const storedSeed = Number(metaGet(QUESTION_BANK_VARIANT_SEED_KEY))
+  if (Number.isSafeInteger(storedSeed) && storedSeed > 0 && storedSeed <= 0xffffffff) {
+    questionBankVariantShuffleSeed = storedSeed
+    return
+  }
+
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error('Variantlar tartibini saqlash uchun xavfsiz tasodifiy generator mavjud emas.')
+  }
+  const randomValues = new Uint32Array(1)
+  globalThis.crypto.getRandomValues(randomValues)
+  questionBankVariantShuffleSeed = randomValues[0] || 1
+  await metaSet(QUESTION_BANK_VARIANT_SEED_KEY, String(questionBankVariantShuffleSeed))
 }
 
 function progressIdentity() {
@@ -234,6 +253,24 @@ function regularSorted() {
     .sort((a, b) => negFlag(a.id) - negFlag(b.id) || Math.abs(a.id) - Math.abs(b.id))
 }
 
+function regularVariantQuestionOrder() {
+  if (questionBankVariantShuffleSeed == null) {
+    throw new Error('Variantlar tartibi uchun ma’lumotlar bazasi ishga tushmagan.')
+  }
+  const shuffled = regularSorted()
+  let state = questionBankVariantShuffleSeed >>> 0
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    state = (state + 0x6d2b79f5) >>> 0
+    let value = state
+    value = Math.imul(value ^ (value >>> 15), value | 1)
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+    const random = ((value ^ (value >>> 14)) >>> 0) / 4294967296
+    const target = Math.floor(random * (index + 1))
+    ;[shuffled[index], shuffled[target]] = [shuffled[target], shuffled[index]]
+  }
+  return shuffled
+}
+
 function newSorted() {
   return usableList()
     .filter(isNewQuestion)
@@ -309,7 +346,7 @@ function variantsFrom(count, offset, kind) {
 
 export function examVariants() {
   const language = getLanguage()
-  const regularCount = regularSorted().length
+  const regularCount = regularVariantQuestionOrder().length
   const regularVariantCount = Math.ceil(regularCount / 20)
   const manual = [...state.variants.values()]
     .filter((v) => !v.is_deleted)
@@ -614,7 +651,7 @@ export function pickQuestions({ mode, lessonId, sectionId, count, variantNumber,
           seconds: questions.length * CUSTOM_SECONDS_PER_QUESTION,
         }
       }
-      const source = variantKind === 'admin-new' ? newSorted() : regularSorted()
+      const source = variantKind === 'admin-new' ? newSorted() : regularVariantQuestionOrder()
       const questions = source.slice(offset, offset + 20)
       return {
         title: `Variant ${Number(variantNumber) || variantIndex}`,
