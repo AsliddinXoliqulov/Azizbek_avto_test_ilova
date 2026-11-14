@@ -10,7 +10,7 @@ export const OFFLINE_GRACE_MS = 7 * 24 * 60 * 60 * 1000
 const MESSAGES = {
   INVALID_CODE: "Kod noto'g'ri. Qaytadan tekshirib kiriting.",
   EXPIRED: 'Kodning foydalanish muddati tugagan. Admindan yangi kod so‘rang.',
-  ALREADY_USED: 'Kod boshqa qurilmaga ulangan.',
+  ALREADY_USED: 'Kod boshqa qurilmada faollashtirilmadi. Internetga ulanib, qayta urinib ko‘ring.',
   REVOKED: 'Bu kod bekor qilingan. Admin kodni qayta faollashtirgan bo‘lsa, qayta urining.',
   TOO_MANY_ATTEMPTS: "Juda ko'p noto'g'ri urinish. 10 daqiqadan so'ng qayta urinib ko'ring.",
   INVALID_DEVICE: 'Qurilma aniqlanmadi. Sahifani qayta yuklang.',

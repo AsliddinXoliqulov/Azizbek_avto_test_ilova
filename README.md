@@ -24,9 +24,11 @@ migratsiyasini bir marta ishga tushiring. Qayta ishlatiladigan kodlar uchun
 [`Frontend/supabase_web_activation_reusable_codes_migration.sql`](../Frontend/supabase_web_activation_reusable_codes_migration.sql),
 foydalanuvchi savollarini saqlash uchun
 [`Frontend/supabase_web_activation_user_progress_migration.sql`](../Frontend/supabase_web_activation_user_progress_migration.sql)
-migratsiyalarini, so‘ng bitta qurilma va fingerprint bog‘lanishi uchun
+migratsiyalarini ishga tushiring. Eski o‘rnatmalarda
 [`Frontend/supabase_single_device_auth_migration.sql`](../Frontend/supabase_single_device_auth_migration.sql)
-migratsiyasini ishga tushiring.
+qo‘llangan bo‘lsa, undan keyin
+[`Frontend/supabase_web_activation_unlimited_devices_migration.sql`](../Frontend/supabase_web_activation_unlimited_devices_migration.sql)
+migratsiyasini ham bajaring; u qurilma cheklovini olib tashlaydi.
 
 ## Internetga joylash
 
@@ -37,10 +39,10 @@ Vercel: loyihani ulang, Environment Variables'ga `VITE_SUPABASE_URL` va `VITE_SU
 ## Qanday ishlaydi
 
 1. **Faollashtirish.** Admin paneldagi **Sayt** bo'limidan 6 xonali raqamli kod olinadi
-   (desktop kodlaridan alohida saqlanadi va faqat bitta qurilmaga bog'lanadi).
+   (desktop kodlaridan alohida saqlanadi va ko‘p qurilmada ishlaydi).
    Kod yaratilganidan 15 kun o'tgach muddati tugaydi; shu vaqtdan keyin saytga kirish ham bloklanadi.
-   Qurilma identifikatori FingerprintJS brauzer fingerprinti asosida olinadi. Kodga bog‘langan qurilmani
-   administrator paneldagi **Qurilmani tiklash** tugmasi orqali qayta o‘rnatishi mumkin.
+   Brauzer fingerprinti faqat har bir brauzerning aktivatsiya va sinxronlash holatini aniqlash uchun
+   ishlatiladi; bitta kodni qayta kiritib, boshqa brauzer yoki qurilmada ham faollashtirish mumkin.
 2. **Avtomatik sinxronlash.** Faollashtirilgan ilova ochilganda katalog va savol matnlari fonda Supabase RPC
    (`sync_base_catalog`, `sync_base_questions`, `sync_lesson_question_order`) orqali tekshiriladi. Faqat yangi yoki
    o'zgargan ma'lumotlar olinib, IndexedDB'da saqlanadi; foydalanuvchiga alohida yangilash bo'limi ko'rsatilmaydi.
@@ -54,7 +56,7 @@ Vercel: loyihani ulang, Environment Variables'ga `VITE_SUPABASE_URL` va `VITE_SU
 5. **Imtihon tarixi.** Kompyuter ilovasidagidek, tugagan imtihonlar har ishga tushganda tozalanadi («bu sessiyada»).
    Doimiy saqlash uchun `src/renderer/src/web/engine.js` da `KEEP_EXAM_HISTORY = true` qiling.
 6. **Xatolar va saqlangan savollar.** Savollar ID raqami bo'yicha aktivatsiya kodiga bog'lanib,
-   Supabase'da saqlanadi. Shu kod faqat bog‘langan fingerprintda ishlaydi;
+   Supabase'da saqlanadi va shu kod bilan faollashtirilgan qurilmalar o‘rtasida almashiladi;
    internet bo'lmaganda o'zgarishlar IndexedDB'da navbatga qo'yilib, ulanish tiklanganda yuboriladi.
 
 ## Tuzilma
